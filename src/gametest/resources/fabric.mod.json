@@ -7,6 +7,7 @@
   "mixins": ["client_stacker_tests.mixins.json"],
   "entrypoints": {
     "fabric-client-gametest": [
+      "dev.ohneb.clientstacker.client.CraftTimingGameTest",
       "dev.ohneb.clientstacker.client.InventoryGameTest",
       "dev.ohneb.clientstacker.client.InventoryFailureGameTest",
       "dev.ohneb.clientstacker.client.TradeCorrectionGameTest",

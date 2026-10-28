@@ -15,6 +15,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import dev.ohneb.clientstacker.client.TradeCorrectionGameTest;
 import dev.ohneb.clientstacker.client.InventoryFailureGameTest;
 import dev.ohneb.clientstacker.client.TradeSafetyGameTest;
+import dev.ohneb.clientstacker.client.CraftTimingGameTest;
 
 @Mixin(ServerGamePacketListenerImpl.class)
 public abstract class TradeInterferenceMixin {
@@ -22,6 +23,11 @@ public abstract class TradeInterferenceMixin {
 
     @Inject(method = "handleCustomCommandSuggestions", at = @At("HEAD"), cancellable = true)
     private void blockCheckpoint(net.minecraft.network.protocol.game.ServerboundCommandSuggestionPacket packet, CallbackInfo ci) {
+        if (CraftTimingGameTest.holding && player.level().getServer().isSameThread()) {
+            CraftTimingGameTest.held.add(packet);
+            ci.cancel();
+            return;
+        }
         if (TradeSafetyGameTest.barrierMode == 0 || !player.level().getServer().isSameThread()
             || !(player.containerMenu instanceof MerchantMenu menu)
             || menu.getOffers().getFirst().getUses() < TradeSafetyGameTest.barrierAfterUses) return;
@@ -35,6 +41,11 @@ public abstract class TradeInterferenceMixin {
 
     @Inject(method = "handleContainerClick", at = @At("HEAD"), cancellable = true)
     private void rejectPurchase(ServerboundContainerClickPacket packet, CallbackInfo ci) {
+        if (CraftTimingGameTest.holding && player.level().getServer().isSameThread()) {
+            CraftTimingGameTest.held.add(packet);
+            ci.cancel();
+            return;
+        }
         if (TradeSafetyGameTest.rejectPurchase && player.level().getServer().isSameThread()
             && player.containerMenu instanceof MerchantMenu && packet.slotNum() == 2 && packet.clickType() == ClickType.PICKUP) {
             TradeSafetyGameTest.rejectPurchase = false;
@@ -50,6 +61,12 @@ public abstract class TradeInterferenceMixin {
 
     @Inject(method = "handleContainerClick", at = @At("RETURN"))
     private void fillDestination(ServerboundContainerClickPacket packet, CallbackInfo ci) {
+        if (CraftTimingGameTest.enabled && player.containerMenu == player.inventoryMenu
+            && packet.clickType() == ClickType.PICKUP && (packet.slotNum() == 0) == CraftTimingGameTest.afterOutput) {
+            CraftTimingGameTest.enabled = false;
+            CraftTimingGameTest.holding = true;
+            player.inventoryMenu.broadcastFullState();
+        }
         if (TradeCorrectionGameTest.interfere && player.containerMenu instanceof MerchantMenu
             && packet.slotNum() == 2 && packet.clickType() == ClickType.PICKUP) {
             TradeCorrectionGameTest.interfere = false;

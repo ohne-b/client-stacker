@@ -7,9 +7,9 @@ import net.minecraft.world.item.ItemStack;
 
 import java.util.List;
 
-/** One recipe at a time, fenced by the server's crafting-result updates. */
+/** One recipe at a time, confirming each complete click batch with the server. */
 final class CraftOperation implements Operation {
-    private enum Stage { FILL, RESULT, COLLECTED, CHECKPOINT }
+    private enum Stage { FILL, RESULT, COLLECTED }
 
     private final AbstractContainerMenu menu;
     private final Conversion conversion;
@@ -19,7 +19,6 @@ final class CraftOperation implements Operation {
     private Stage stage = Stage.FILL;
     private CraftPlanner.Plan plan;
     private List<ItemStack> expected;
-    private boolean serverResult;
     private long deadline;
     private int completed;
     private InventoryCheckpoint checkpoint;
@@ -37,11 +36,11 @@ final class CraftOperation implements Operation {
     @Override
     public boolean tick() {
         Operation.requireCurrent(menu);
-        if (!menu.getCarried().isEmpty()) throw new Stopped("cursor");
         if (System.nanoTime() > deadline) throw new Stopped("timeout");
-        if (expected != null && !MenuInventory.matches(expected, menu, 0)) throw new Stopped("changed");
         switch (stage) {
             case FILL -> {
+                if (!menu.getCarried().isEmpty()) throw new Stopped("cursor");
+                if (expected != null && !MenuInventory.matches(expected, menu, 0)) throw new Stopped("changed");
                 if (!MenuInventory.emptyGrid(menu)) throw new Stopped("grid");
                 try {
                     plan = CraftPlanner.plan(MenuInventory.snapshot(menu), MenuInventory.grid(menu), 0,
@@ -51,18 +50,17 @@ final class CraftOperation implements Operation {
                     if (completed > 0 && exception.reason() == CraftPlanner.Failure.NOT_ENOUGH_ITEMS) return true;
                     throw exception;
                 }
-                serverResult = false;
                 stage = Stage.RESULT;
                 for (var click : plan.fill()) ClientStacker.click(menu, click.slot(), click.button());
                 if (!menu.getCarried().isEmpty()) throw new Stopped("changed");
                 expected = MenuInventory.copySlots(menu);
+                checkpoint = new InventoryCheckpoint(menu, 0);
                 resetDeadline();
             }
             case RESULT -> {
-                if (!serverResult) return false;
+                if (!checkpoint.ready()) return false;
                 ItemStack output = new ItemStack(Materials.item(plan.output()), plan.outputCount());
                 if (!ItemStack.matches(menu.getSlot(0).getItem(), output)) throw new Stopped("recipe");
-                serverResult = false;
                 stage = Stage.COLLECTED;
                 for (var click : plan.collect()) ClientStacker.click(menu, click.slot(), click.button());
                 if (!menu.getCarried().isEmpty() || !MenuInventory.emptyGrid(menu)) throw new Stopped("changed");
@@ -71,17 +69,12 @@ final class CraftOperation implements Operation {
                     if (actual.getCount() != slot.count() || !Materials.id(actual).equals(slot.item())) throw new Stopped("changed");
                 }
                 expected = MenuInventory.copySlots(menu);
+                checkpoint = new InventoryCheckpoint(menu, 0);
                 resetDeadline();
             }
             case COLLECTED -> {
-                if (!serverResult) return false;
-                if (!menu.getSlot(0).getItem().isEmpty()) throw new Stopped("recipe");
-                checkpoint = new InventoryCheckpoint(menu, 0);
-                stage = Stage.CHECKPOINT;
-                resetDeadline();
-            }
-            case CHECKPOINT -> {
                 if (!checkpoint.ready()) return false;
+                if (!menu.getSlot(0).getItem().isEmpty()) throw new Stopped("recipe");
                 completed++;
                 if (--remaining == 0) return true;
                 stage = Stage.FILL;
@@ -92,18 +85,7 @@ final class CraftOperation implements Operation {
     }
 
     @Override
-    public void slot(int container, int slot, ItemStack item) {
-        if (container != menu.containerId || slot != 0) return;
-        if (stage == Stage.RESULT) {
-            serverResult = ItemStack.matches(item, new ItemStack(Materials.item(plan.output()), plan.outputCount()));
-        } else if (stage == Stage.COLLECTED) {
-            serverResult = item.isEmpty();
-        }
-    }
-
-    @Override
     public void contents(int container) {
-        if (container == menu.containerId) slot(container, 0, menu.getSlot(0).getItem());
         if (checkpoint != null) checkpoint.contents(container);
     }
 
@@ -115,7 +97,7 @@ final class CraftOperation implements Operation {
     @Override
     public void cancel() {
         Operation.requireCurrent(menu);
-        if (expected != null && MenuInventory.matches(expected, menu, 0) && menu.getCarried().isEmpty()) {
+        if (checkpoint != null && checkpoint.ready()) {
             MenuInventory.clearInputs(menu, MenuInventory.grid(menu));
         }
     }

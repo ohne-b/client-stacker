@@ -29,8 +29,8 @@ public final class InventoryFailureGameTest implements FabricClientGameTest {
                 client.gameMode.handlePlaceRecipe(0, new RecipeDisplayId(0), true);
                 ClientStacker.cancel();
             });
-            context.waitTicks(4);
-            assertUntouched(server, false);
+            GameTestPackets.settle(context);
+            assertUnspent(server, false, 1);
             if (recipePackets != 0) throw new AssertionError("Recipe-book placement bypassed inventory ownership");
 
             reset(context, server, false, false);
@@ -41,20 +41,20 @@ public final class InventoryFailureGameTest implements FabricClientGameTest {
                     new net.minecraft.client.input.KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE, 0, 0));
                 if (ClientStacker.busy()) throw new AssertionError("Escape with no container screen did not cancel");
             });
-            context.waitTicks(3);
-            assertUntouched(server, false);
+            GameTestPackets.settle(context);
+            assertUnspent(server, false, 0);
 
             reset(context, server, true, false);
             context.runOnClient(client -> start(context));
             context.waitFor(client -> !ClientStacker.busy());
-            assertUntouched(server, false);
+            assertUnspent(server, false, 0);
 
             reset(context, server, false, true);
             context.runOnClient(client -> {
                 start(context);
                 if (ClientStacker.busy()) throw new AssertionError("Custom item was accepted");
             });
-            assertUntouched(server, true);
+            assertUnspent(server, true, 0);
 
             reset(context, server, false, false);
             context.runOnClient(client -> {
@@ -62,41 +62,30 @@ public final class InventoryFailureGameTest implements FabricClientGameTest {
                 ClientStacker.tick();
                 client.player.closeContainer();
             });
-            context.waitTicks(4);
+            GameTestPackets.settle(context);
             context.runOnClient(client -> {
                 if (ClientStacker.busy()) throw new AssertionError("Operation survived a closed screen");
             });
-            assertUntouched(server, false);
+            assertUnspent(server, false, 0);
 
             reset(context, server, false, false);
-            var pending = new CraftOperation[1];
-            context.runOnClient(client -> {
-                pending[0] = new CraftOperation(client.player.inventoryMenu, Materials.EMERALDS, false, 1);
-                pending[0].tick();
-            });
+            CraftTimingGameTest.afterOutput = false;
+            CraftTimingGameTest.enabled = true;
+            context.runOnClient(client -> start(context));
             // A server-side inventory correction while the recipe is pending must stop the craft.
-            context.waitTicks(2);
+            context.waitFor(client -> CraftTimingGameTest.holding && !client.player.inventoryMenu.getCarried().isEmpty());
             server.runOnServer(instance -> {
                 var player = instance.getPlayerList().getPlayers().getFirst();
                 player.getInventory().setItem(10, new ItemStack(Items.DIRT));
-                player.inventoryMenu.broadcastFullState();
+                CraftTimingGameTest.release(player.connection);
             });
-            context.waitFor(client -> client.player.getInventory().getItem(10).is(Items.DIRT));
+            context.waitFor(client -> !ClientStacker.busy());
             context.runOnClient(client -> {
-                try {
-                    pending[0].tick();
-                    throw new AssertionError("Correction did not stop the craft");
-                } catch (Operation.Stopped stopped) {
-                    if (!stopped.reason.equals("changed")) throw stopped;
+                if (!(client.screen instanceof InventoryScreen) || !client.player.getInventory().getItem(10).is(Items.DIRT)) {
+                    throw new AssertionError("Correction was not received or closed the menu");
                 }
             });
-            server.runOnServer(instance -> {
-                var player = instance.getPlayerList().getPlayers().getFirst();
-                if (player.getInventory().countItem(Items.EMERALD) != 0
-                    || player.inventoryMenu.getSlot(1).getItem().getCount() != 1) {
-                    throw new AssertionError("Corrected craft was collected");
-                }
-            });
+            assertUnspent(server, false, 1);
         }
     }
 
@@ -106,7 +95,7 @@ public final class InventoryFailureGameTest implements FabricClientGameTest {
             client.player.closeContainer();
             ClientStacker.config().protectedSlots.clear();
         });
-        context.waitTicks(3);
+        GameTestPackets.settle(context);
         server.runOnServer(instance -> {
             var player = instance.getPlayerList().getPlayers().getFirst();
             player.setGameMode(GameType.SURVIVAL);
@@ -117,7 +106,7 @@ public final class InventoryFailureGameTest implements FabricClientGameTest {
             player.getInventory().setItem(0, blocks);
             player.inventoryMenu.broadcastFullState();
         });
-        context.waitTicks(3);
+        GameTestPackets.settle(context);
         context.setScreen(() -> new InventoryScreen(net.minecraft.client.Minecraft.getInstance().player));
     }
 
@@ -129,12 +118,13 @@ public final class InventoryFailureGameTest implements FabricClientGameTest {
         ClientStacker.convert(screen, slot, false);
     }
 
-    private static void assertUntouched(TestServerContext server, boolean named) {
+    private static void assertUnspent(TestServerContext server, boolean named, int input) {
         server.runOnServer(instance -> {
             var player = instance.getPlayerList().getPlayers().getFirst();
-            if (player.getInventory().countItem(Items.EMERALD_BLOCK) != 2 || player.getInventory().countItem(Items.EMERALD) != 0
-                || !player.inventoryMenu.getCarried().isEmpty() || !player.inventoryMenu.getSlot(1).getItem().isEmpty()) {
-                throw new AssertionError("Stopped conversion changed the inventory");
+            if (player.getInventory().countItem(Items.EMERALD_BLOCK) != 2 - input || player.getInventory().countItem(Items.EMERALD) != 0
+                || !player.inventoryMenu.getCarried().isEmpty() || player.inventoryMenu.getSlot(1).getItem().getCount() != input
+                || !player.level().getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, player.getBoundingBox().inflate(8)).isEmpty()) {
+                throw new AssertionError("Stopped conversion spent or dropped items");
             }
             if (named && !player.getInventory().getItem(0).has(DataComponents.CUSTOM_NAME)) {
                 throw new AssertionError("Item name lost");

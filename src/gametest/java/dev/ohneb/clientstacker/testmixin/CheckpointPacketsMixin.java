@@ -1,6 +1,7 @@
 package dev.ohneb.clientstacker.testmixin;
 
 import dev.ohneb.clientstacker.client.TradeSafetyGameTest;
+import dev.ohneb.clientstacker.client.GameTestPackets;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.protocol.game.ClientboundContainerSetContentPacket;
@@ -14,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class CheckpointPacketsMixin {
     @Inject(method = "handleCommandSuggestions", at = @At("RETURN"))
     private void fixtureReply(net.minecraft.network.protocol.game.ClientboundCommandSuggestionsPacket packet, CallbackInfo ci) {
-        if (packet.id() >= 0) TradeSafetyGameTest.fixtureReply = packet.id();
+        if (packet.id() >= 0) GameTestPackets.received = packet.id();
     }
 
     @Inject(method = "handleContainerContent", at = @At("RETURN"))

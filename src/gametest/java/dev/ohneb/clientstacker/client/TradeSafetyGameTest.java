@@ -30,8 +30,6 @@ public final class TradeSafetyGameTest implements FabricClientGameTest {
     public static volatile int barrierAfterUses;
     public static volatile int blockedBarrier;
     public static volatile int checkpointSnapshots;
-    public static volatile int fixtureReply;
-    private static int nextFixtureReply = 1;
     @Override
     public void runTest(ClientGameTestContext context) {
         try (var world = context.worldBuilder().create()) {
@@ -184,7 +182,7 @@ public final class TradeSafetyGameTest implements FabricClientGameTest {
                 server.runOnServer(instance -> instance.getPlayerList().getPlayers().getFirst().connection.send(
                     new net.minecraft.network.protocol.game.ClientboundCommandSuggestionsPacket(blockedBarrier,
                         com.mojang.brigadier.suggestion.Suggestions.empty().join())));
-                settle(context);
+                GameTestPackets.settle(context);
                 context.runOnClient(client -> {
                     if (ClientStacker.busy() || !(client.screen instanceof MerchantScreen)) {
                         throw new AssertionError("A late checkpoint resumed the request or closed the menu");
@@ -263,7 +261,7 @@ public final class TradeSafetyGameTest implements FabricClientGameTest {
         context.runOnClient(client -> client.gameMode.interact(client.player, client.level.getEntity(first), InteractionHand.MAIN_HAND));
         context.waitForScreen(MerchantScreen.class);
         context.waitFor(client -> !((MerchantMenu) client.player.containerMenu).getOffers().isEmpty());
-        settle(context);
+        GameTestPackets.settle(context);
         trade(context, false);
         assertResult(server, 1, Items.EMERALD_BLOCK, 1, Items.EMERALD, 2);
         server.runOnServer(instance -> {
@@ -365,15 +363,8 @@ public final class TradeSafetyGameTest implements FabricClientGameTest {
         context.runOnClient(client -> client.gameMode.interact(client.player, client.level.getEntity(merchant.get()), InteractionHand.MAIN_HAND));
         context.waitForScreen(MerchantScreen.class);
         context.waitFor(client -> !((MerchantMenu) client.player.containerMenu).getOffers().isEmpty());
-        settle(context);
+        GameTestPackets.settle(context);
         return merchant.get();
-    }
-
-    private static void settle(ClientGameTestContext context) {
-        int id = nextFixtureReply++;
-        context.runOnClient(client -> client.getConnection().send(
-            new net.minecraft.network.protocol.game.ServerboundCommandSuggestionPacket(id, "/")));
-        context.waitFor(client -> fixtureReply == id);
     }
 
     private static void trade(ClientGameTestContext context, boolean bulk) {
