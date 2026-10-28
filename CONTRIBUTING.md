@@ -16,9 +16,10 @@ tests against a player's normal world or a public server.
 
 ## Development
 
-Use JDK 21 for Minecraft 1.21.x and JDK 25 for Minecraft 26.x. The committed Gradle
-wrapper resolves build dependencies. Set `JDK21` and `JDK25` to the respective JDK
+Run Gradle with JDK 25. Minecraft 1.21.x uses a JDK 21 toolchain; 26.x uses JDK 25.
+The committed Gradle wrapper resolves build dependencies. Set `JDK21` and `JDK25` to the respective JDK
 directories when both toolchains are installed outside standard locations.
+Set `JAVA_HOME` to JDK 25 when it is not already the default.
 
 ```powershell
 .\gradlew.bat :core:test
