@@ -55,11 +55,11 @@ final class InventoryCheckpoint {
     }
 
     void contents(int container) {
-        if (container == menu.containerId) received = MenuInventory.copySlots(menu);
+        if (!barrier && container == menu.containerId) received = MenuInventory.copySlots(menu);
     }
 
     void barrier(int responseId) {
-        if (responseId != id) return;
+        if (barrier || responseId != id) return;
         barrier = true;
         confirmed = received != null && menu.getCarried().isEmpty() && MenuInventory.matches(received, menu, resultSlot)
             && (expected == null || MenuInventory.matches(expected, menu, resultSlot));

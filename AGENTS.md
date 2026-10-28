@@ -18,6 +18,7 @@ until an ordered, correlated response without item or world effects is verified 
 vanilla and supported modded servers. Block-action packets enter NeoForge interaction
 hooks and are not a safe substitute. Confirm each complete crafting batch before
 inspecting its result; intermediate corrections can arrive over several client ticks.
+Freeze the snapshot at its matching reply; later contents cannot inherit that confirmation.
 Overlapping merchant interactions have no trusted identity. Discard their associations
 until a server-thread barrier has drained the replies; require a fresh interaction.
 

@@ -16,6 +16,7 @@ import dev.ohneb.clientstacker.client.TradeCorrectionGameTest;
 import dev.ohneb.clientstacker.client.InventoryFailureGameTest;
 import dev.ohneb.clientstacker.client.TradeSafetyGameTest;
 import dev.ohneb.clientstacker.client.CraftTimingGameTest;
+import dev.ohneb.clientstacker.client.CheckpointCorrectionGameTest;
 
 @Mixin(ServerGamePacketListenerImpl.class)
 public abstract class TradeInterferenceMixin {
@@ -23,6 +24,10 @@ public abstract class TradeInterferenceMixin {
 
     @Inject(method = "handleCustomCommandSuggestions", at = @At("HEAD"), cancellable = true)
     private void blockCheckpoint(net.minecraft.network.protocol.game.ServerboundCommandSuggestionPacket packet, CallbackInfo ci) {
+        if (CheckpointCorrectionGameTest.replaceAfterBarrier(player, packet.getId())) {
+            ci.cancel();
+            return;
+        }
         if (CraftTimingGameTest.holding && player.level().getServer().isSameThread()) {
             CraftTimingGameTest.held.add(packet);
             ci.cancel();
