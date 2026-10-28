@@ -1,8 +1,14 @@
-<p align="center"><img src="src/main/resources/assets/client_stacker/logo.svg" alt="Client Stacker logo" width="144"></p>
+<p align="center">
+  <img src="src/main/resources/assets/client_stacker/logo.svg" width="128" alt="Client Stacker logo">
+</p>
 
 <h1 align="center">Client Stacker</h1>
 
 <p align="center">Use compact resources for crafting and villager trading.</p>
+
+<p align="center">
+  <a href="LICENSE.md"><img src="https://img.shields.io/badge/license-MIT-22c55e" alt="License: MIT"></a>
+</p>
 
 Client Stacker is a client-side mod for Fabric and NeoForge. It prepares materials
 through normal crafting, including emeralds stored as blocks. Servers do not need
