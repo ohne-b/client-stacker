@@ -13,6 +13,7 @@ import java.nio.file.Path;
 public abstract class TestConfigMixin {
     @ModifyVariable(method = "initialize", at = @At("HEAD"), argsOnly = true)
     private static Path isolatedSettings(Path original) throws IOException {
-        return Files.createTempDirectory(Path.of(System.getProperty("clientstacker.test.artifacts")), "gametest-config-");
+        Path artifacts = Files.createDirectories(Path.of(System.getProperty("clientstacker.test.artifacts")));
+        return Files.createTempDirectory(artifacts, "gametest-config-");
     }
 }
