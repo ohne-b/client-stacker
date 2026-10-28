@@ -66,6 +66,8 @@ if (minecraftVersion == "1.21.11") {
     }
     loom.runs.named("clientGameTest") {
         vmArg("-Dclientstacker.test.artifacts=${rootProject.file("artifacts").absolutePath}")
+        // Use real packet timing; Fabric's packet synchronizer can stall world startup.
+        vmArg("-Dfabric.client.gametest.disableNetworkSynchronizer=true")
     }
 }
 

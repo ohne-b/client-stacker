@@ -45,6 +45,7 @@ put contributor rules here and technical contracts in AGENTS.
 
 Client game tests use disposable integrated-server worlds and check server inventory,
 offer uses, cancellation, corrections, protected resources, and dropped item entities.
+Fabric's packet synchronizer is disabled so these tests use normal asynchronous delivery.
 `-PvtpTest` adds the pinned VTP artifact to that development run. The test mod is not
 included in distributable jars. Use `xvfb-run -a` for these tests on headless Linux.
 Dedicated multiplayer, latency, and gameplay on other targets remain separate checks.
