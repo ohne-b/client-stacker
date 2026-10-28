@@ -20,6 +20,19 @@ import dev.ohneb.clientstacker.client.TradeSafetyGameTest;
 public abstract class TradeInterferenceMixin {
     @Shadow public ServerPlayer player;
 
+    @Inject(method = "handleCustomCommandSuggestions", at = @At("HEAD"), cancellable = true)
+    private void blockCheckpoint(net.minecraft.network.protocol.game.ServerboundCommandSuggestionPacket packet, CallbackInfo ci) {
+        if (TradeSafetyGameTest.barrierMode == 0 || !player.level().getServer().isSameThread()
+            || !(player.containerMenu instanceof MerchantMenu menu)
+            || menu.getOffers().getFirst().getUses() < TradeSafetyGameTest.barrierAfterUses) return;
+        TradeSafetyGameTest.blockedBarrier = packet.getId();
+        if (TradeSafetyGameTest.barrierMode == 2) {
+            player.connection.send(new net.minecraft.network.protocol.game.ClientboundCommandSuggestionsPacket(packet.getId() - 1,
+                com.mojang.brigadier.suggestion.Suggestions.empty().join()));
+        }
+        ci.cancel();
+    }
+
     @Inject(method = "handleContainerClick", at = @At("HEAD"), cancellable = true)
     private void rejectPurchase(ServerboundContainerClickPacket packet, CallbackInfo ci) {
         if (TradeSafetyGameTest.rejectPurchase && player.level().getServer().isSameThread()

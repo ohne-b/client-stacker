@@ -26,6 +26,12 @@ public final class TradeSafetyGameTest implements FabricClientGameTest {
     public static volatile boolean delayReopening;
     public static volatile int delayedMerchant = -1;
     public static volatile boolean rejectPurchase;
+    public static volatile int barrierMode;
+    public static volatile int barrierAfterUses;
+    public static volatile int blockedBarrier;
+    public static volatile int checkpointSnapshots;
+    public static volatile int fixtureReply;
+    private static int nextFixtureReply = 1;
     @Override
     public void runTest(ClientGameTestContext context) {
         try (var world = context.worldBuilder().create()) {
@@ -138,7 +144,10 @@ public final class TradeSafetyGameTest implements FabricClientGameTest {
             delayedMerchant = -1;
             delayReopening = true;
             context.runOnClient(client -> ClientStacker.trade((MerchantMenu) client.player.containerMenu, 0, true));
-            context.waitFor(client -> delayedMerchant >= 0 && client.screen == null && client.level.getEntity(secondMerchant.get()) != null);
+            context.waitFor(client -> {
+                if (!ClientStacker.busy()) throw new AssertionError("Request stopped before the delayed reopening");
+                return delayedMerchant >= 0 && client.screen == null && client.level.getEntity(secondMerchant.get()) != null;
+            });
             context.runOnClient(client -> {
                 client.gameMode.interact(client.player, client.level.getEntity(secondMerchant.get()), InteractionHand.MAIN_HAND);
                 if (ClientStacker.busy()) throw new AssertionError("A second merchant interaction did not cancel the request");
@@ -148,11 +157,42 @@ public final class TradeSafetyGameTest implements FabricClientGameTest {
             assertResult(server, 0, Items.EMERALD_BLOCK, 1, Items.EMERALD, 9);
 
             verifyOverlappingInteractions(context, server);
+            verifyMissingBarriers(context, server);
             if (VtpCompat.installed()) verifyVtp(context, server);
         } finally {
             delayReopening = false;
             delayedMerchant = -1;
             rejectPurchase = false;
+            barrierMode = 0;
+        }
+    }
+
+    private static void verifyMissingBarriers(ClientGameTestContext context, TestServerContext server) {
+        for (int mode : new int[]{1, 2}) {
+            for (int uses : new int[]{0, 1}) {
+                open(context, server, Items.EMERALD, 7, null, 0, new ItemStack(Items.EMERALD_BLOCK, 2));
+                context.waitTicks(3);
+                checkpointSnapshots = 0;
+                blockedBarrier = 0;
+                barrierAfterUses = uses;
+                barrierMode = mode;
+                context.runOnClient(client -> ClientStacker.config().timeoutSeconds = 5);
+                trade(context, true);
+                if (blockedBarrier == 0 || checkpointSnapshots == 0) throw new AssertionError("Checkpoint response was not exercised");
+                assertResult(server, uses, Items.EMERALD_BLOCK, 2 - uses, Items.EMERALD, uses * 2);
+                barrierMode = 0;
+                server.runOnServer(instance -> instance.getPlayerList().getPlayers().getFirst().connection.send(
+                    new net.minecraft.network.protocol.game.ClientboundCommandSuggestionsPacket(blockedBarrier,
+                        com.mojang.brigadier.suggestion.Suggestions.empty().join())));
+                settle(context);
+                context.runOnClient(client -> {
+                    if (ClientStacker.busy() || !(client.screen instanceof MerchantScreen)) {
+                        throw new AssertionError("A late checkpoint resumed the request or closed the menu");
+                    }
+                    ClientStacker.config().timeoutSeconds = 10;
+                });
+                assertResult(server, uses, Items.EMERALD_BLOCK, 2 - uses, Items.EMERALD, uses * 2);
+            }
         }
     }
 
@@ -223,6 +263,7 @@ public final class TradeSafetyGameTest implements FabricClientGameTest {
         context.runOnClient(client -> client.gameMode.interact(client.player, client.level.getEntity(first), InteractionHand.MAIN_HAND));
         context.waitForScreen(MerchantScreen.class);
         context.waitFor(client -> !((MerchantMenu) client.player.containerMenu).getOffers().isEmpty());
+        settle(context);
         trade(context, false);
         assertResult(server, 1, Items.EMERALD_BLOCK, 1, Items.EMERALD, 2);
         server.runOnServer(instance -> {
@@ -304,6 +345,8 @@ public final class TradeSafetyGameTest implements FabricClientGameTest {
         server.runOnServer(instance -> {
             var player = instance.getPlayerList().getPlayers().getFirst();
             player.setGameMode(GameType.SURVIVAL);
+            player.level().getEntitiesOfClass(net.minecraft.world.entity.npc.villager.Villager.class,
+                player.getBoundingBox().inflate(10)).forEach(net.minecraft.world.entity.Entity::discard);
             player.getInventory().clearContent();
             for (int i = 0; i < inventory.length; i++) player.getInventory().setItem(i, inventory[i].copy());
             player.inventoryMenu.broadcastFullState();
@@ -322,7 +365,15 @@ public final class TradeSafetyGameTest implements FabricClientGameTest {
         context.runOnClient(client -> client.gameMode.interact(client.player, client.level.getEntity(merchant.get()), InteractionHand.MAIN_HAND));
         context.waitForScreen(MerchantScreen.class);
         context.waitFor(client -> !((MerchantMenu) client.player.containerMenu).getOffers().isEmpty());
+        settle(context);
         return merchant.get();
+    }
+
+    private static void settle(ClientGameTestContext context) {
+        int id = nextFixtureReply++;
+        context.runOnClient(client -> client.getConnection().send(
+            new net.minecraft.network.protocol.game.ServerboundCommandSuggestionPacket(id, "/")));
+        context.waitFor(client -> fixtureReply == id);
     }
 
     private static void trade(ClientGameTestContext context, boolean bulk) {
