@@ -1,8 +1,22 @@
 package dev.ohneb.clientstacker.core;
 
 import java.util.Objects;
+import java.util.List;
 
 public record Conversion(String compact, String loose, int ratio) {
+    /** Values the catalog's block, ingot, and nugget tiers in whole smallest units. */
+    public int unitsPerItem(String item, List<Conversion> catalog) {
+        var smaller = catalog.stream().filter(pair -> pair.compact.equals(loose)).findFirst().orElse(null);
+        int scale = smaller == null ? 1 : smaller.ratio;
+        if (compact.equals(item)) return ratio * scale;
+        if (loose.equals(item)) return scale;
+        if (smaller != null && smaller.loose.equals(item)) return 1;
+        for (var larger : catalog) {
+            if (larger.loose.equals(compact) && larger.compact.equals(item)) return larger.ratio * ratio * scale;
+        }
+        return 0;
+    }
+
     public long itemValue(String item, long count) {
         if (count < 0) throw new IllegalArgumentException("Negative item count");
         if (compact.equals(item)) return Math.multiplyExact(count, ratio);

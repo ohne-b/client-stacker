@@ -54,6 +54,8 @@ public final class TradeSafetyGameTest implements FabricClientGameTest {
             trade(context, false);
             assertResult(server, 0, Items.IRON_BLOCK, 1, Items.IRON_INGOT, 0);
 
+            verifyMetalReserves(context, server);
+
             int namedMerchant = open(context, server, Items.EMERALD, 7, null, 0, new ItemStack(Items.EMERALD_BLOCK, 2));
             server.runOnServer(instance -> {
                 var player = instance.getPlayerList().getPlayers().getFirst();
@@ -151,6 +153,32 @@ public final class TradeSafetyGameTest implements FabricClientGameTest {
             delayReopening = false;
             delayedMerchant = -1;
             rejectPurchase = false;
+        }
+    }
+
+    private static void verifyMetalReserves(ClientGameTestContext context, TestServerContext server) {
+        for (Item[] metal : new Item[][]{{Items.IRON_BLOCK, Items.IRON_INGOT, Items.IRON_NUGGET},
+            {Items.GOLD_BLOCK, Items.GOLD_INGOT, Items.GOLD_NUGGET}}) {
+            Item block = metal[0], ingot = metal[1], nugget = metal[2];
+            for (int ingots : new int[]{9, 10}) {
+                open(context, server, nugget, 9, null, 0, new ItemStack(ingot, ingots));
+                context.runOnClient(client -> {
+                    ClientStacker.config().sellingMaterials.add(Materials.id(new ItemStack(nugget)));
+                    ClientStacker.config().retainedValues.put(Materials.id(new ItemStack(ingot)), 9);
+                });
+                trade(context, false);
+                assertResult(server, ingots - 9, ingot, 9, nugget, 0);
+            }
+            for (int price : new int[]{1, 2}) {
+                open(context, server, nugget, price, null, 0, new ItemStack(ingot, 8), new ItemStack(nugget, 10));
+                context.runOnClient(client -> ClientStacker.config().retainedValues.put(Materials.id(new ItemStack(ingot)), 9));
+                trade(context, false);
+                assertResult(server, price == 1 ? 1 : 0, ingot, 8, nugget, price == 1 ? 9 : 10);
+            }
+            open(context, server, block, 1, null, 0, new ItemStack(block));
+            context.runOnClient(client -> ClientStacker.config().retainedValues.put(Materials.id(new ItemStack(nugget)), 9));
+            trade(context, false);
+            assertResult(server, 0, block, 1, nugget, 0);
         }
     }
 

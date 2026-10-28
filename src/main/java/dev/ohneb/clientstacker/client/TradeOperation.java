@@ -249,21 +249,26 @@ final class TradeOperation implements Operation {
                 long expense = 0;
                 long compactCost = 0;
                 for (ItemStack cost : Materials.costs(offer)) {
-                    expense += material.itemValue(Materials.id(cost), cost.getCount());
+                    expense += (long) material.unitsPerItem(Materials.id(cost), Materials.ALL) * cost.getCount();
                     if (material.compact().equals(Materials.id(cost))) compactCost += cost.getCount();
                 }
                 if (expense == 0) continue;
                 long blocks = MenuInventory.count(menu, new ItemStack(Materials.item(material.compact())), true);
-                long loose = MenuInventory.count(menu, new ItemStack(Materials.item(material.loose())), true);
+                long value = 0;
+                for (var slot : MenuInventory.playerSlots(menu)) {
+                    ItemStack stack = slot.getItem();
+                    if (!MenuInventory.protectedSlot(slot) && Materials.plain(stack)) {
+                        value += (long) material.unitsPerItem(Materials.id(stack), Materials.ALL) * stack.getCount();
+                    }
+                }
                 for (int slot : new int[]{0, 1}) {
                     ItemStack input = menu.getSlot(slot).getItem();
                     if (!Materials.plain(input)) continue;
                     if (material.compact().equals(Materials.id(input))) blocks += input.getCount();
-                    if (material.loose().equals(Materials.id(input))) loose += input.getCount();
+                    value += (long) material.unitsPerItem(Materials.id(input), Materials.ALL) * input.getCount();
                 }
-                int retained = retainedValues.get(material);
+                long retained = (long) retainedValues.get(material) * material.unitsPerItem(material.loose(), Materials.ALL);
                 int blockReserve = ClientStacker.config().blockReserve(material);
-                long value = material.value(blocks, loose);
                 if ((retained > 0 && (value < retained || expense > value - retained))
                     || (blockReserve > 0 && compactCost > 0 && compactCost > blocks - blockReserve)) {
                     ClientStacker.message("material_reserve");
