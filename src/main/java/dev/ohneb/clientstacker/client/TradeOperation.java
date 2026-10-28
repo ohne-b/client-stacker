@@ -2,6 +2,7 @@ package dev.ohneb.clientstacker.client;
 
 import dev.ohneb.clientstacker.core.Conversion;
 import dev.ohneb.clientstacker.core.TradeLimits;
+import dev.ohneb.clientstacker.mixin.MerchantScreenAccess;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.network.protocol.game.ServerboundSelectTradePacket;
@@ -28,7 +29,9 @@ final class TradeOperation implements Operation {
     private final int maxPrice;
     private final int maxUses;
     private final boolean bulk;
+    private final int scroll;
     private final TradeLimits limits;
+    private final Map<Conversion, Integer> retainedValues;
     private MerchantMenu menu;
     private MerchantOffer offer;
     private int index;
@@ -41,7 +44,6 @@ final class TradeOperation implements Operation {
     private Map<Integer, ItemStack> expectedInventory;
     private int contentsId = -1;
     private int offersId = -1;
-    private boolean selectedResult;
     private List<ItemStack> beforeSelect;
     private InventoryCheckpoint checkpoint;
     private Conversion neededConversion;
@@ -60,7 +62,10 @@ final class TradeOperation implements Operation {
         this.maxPrice = offer.getCostA().getCount();
         this.maxUses = offer.getMaxUses();
         this.bulk = bulk;
+        this.scroll = ClientStacker.screen() instanceof MerchantScreenAccess screen ? screen.clientStacker$scroll() : 0;
         this.limits = ClientStacker.config().tradeLimits();
+        this.retainedValues = new HashMap<>();
+        for (var material : Materials.ALL) retainedValues.put(material, ClientStacker.config().retainedValue(material));
         if (!Materials.plain(baseA) || !Materials.plain(costB)) throw new Stopped("components");
         if (!menu.getCarried().isEmpty()) throw new Stopped("cursor");
         if (!ClientStacker.config().protectedSlots.isEmpty()
@@ -85,14 +90,15 @@ final class TradeOperation implements Operation {
                 if (atLimit()) return true;
                 Conversion needed = null;
                 int crafts = 0;
-                for (ItemStack cost : List.of(a, costB)) {
+                for (ItemStack cost : costs(a, costB)) {
                     if (cost.isEmpty()) continue;
                     long count = MenuInventory.count(menu, cost, true);
                     if (count >= cost.getCount()) continue;
                     Conversion conversion = Materials.forTrade(cost);
                     if (conversion == null) return noResources();
                     crafts = Math.toIntExact(conversion.blocksNeeded(cost.getCount(), count));
-                    if (MenuInventory.count(menu, new ItemStack(Materials.item(conversion.compact())), true) < crafts) {
+                    if (MenuInventory.count(menu, new ItemStack(Materials.item(conversion.compact())), true)
+                        - ClientStacker.config().blockReserve(conversion) < crafts) {
                         return noResources();
                     }
                     needed = conversion;
@@ -115,11 +121,11 @@ final class TradeOperation implements Operation {
                         }
                     }
                     beforeSelect = MenuInventory.copySlots(menu);
-                    selectedResult = false;
                     stage = Stage.SELECTED;
-                    // Do not predict tryMoveItems: the actual slot updates are the checkpoint.
+                    // Selection may rearrange inputs; verify its authoritative contents before buying.
                     menu.setSelectionHint(index);
                     minecraft.getConnection().send(new ServerboundSelectTradePacket(index));
+                    checkpoint = new InventoryCheckpoint(menu, 2, false);
                 }
                 resetDeadline();
             }
@@ -152,6 +158,10 @@ final class TradeOperation implements Operation {
                 menu = opened;
                 ClientStacker.associate(menu, merchant);
                 findOffer();
+                if (ClientStacker.screen() instanceof MerchantScreenAccess screen) {
+                    screen.clientStacker$selection(index);
+                    screen.clientStacker$scroll(Math.max(0, Math.min(scroll, menu.getOffers().size() - 7)));
+                }
                 if (!matchesInventory(expectedInventory) || !menu.getCarried().isEmpty()) throw new Stopped("uncertain");
                 if (expectedUses >= 0) {
                     if (offer.getUses() != expectedUses) throw new Stopped("uncertain");
@@ -169,11 +179,16 @@ final class TradeOperation implements Operation {
             }
             case SELECTED -> {
                 Operation.requireCurrent(menu);
-                if (!selectedResult) return false;
+                if (!checkpoint.ready()) return false;
                 findOffer();
+                if (!MenuInventory.sameContents(beforeSelect, menu, 2)) throw new Stopped("changed");
+                if (splitIdenticalCosts()) {
+                    checkpoint = new InventoryCheckpoint(menu, 2);
+                    resetDeadline();
+                    return false;
+                }
                 if (offer.isOutOfStock() || !ItemStack.matches(menu.getSlot(2).getItem(), result)
-                    || !offer.satisfiedBy(menu.getSlot(0).getItem(), menu.getSlot(1).getItem())
-                    || !menu.getCarried().isEmpty() || !MenuInventory.sameContents(beforeSelect, menu, 2)) throw new Stopped("changed");
+                    || !offer.satisfiedBy(menu.getSlot(0).getItem(), menu.getSlot(1).getItem())) throw new Stopped("changed");
                 if (atLimit()) {
                     MenuInventory.clearInputs(menu, List.of(0, 1));
                     return true;
@@ -212,14 +227,52 @@ final class TradeOperation implements Operation {
         return true;
     }
 
+    private boolean splitIdenticalCosts() {
+        ItemStack a = offer.getCostA();
+        ItemStack first = menu.getSlot(0).getItem();
+        ItemStack second = menu.getSlot(1).getItem();
+        if (costB.isEmpty() || !ItemStack.isSameItemSameComponents(a, costB)
+            || !ItemStack.isSameItemSameComponents(first, a)
+            || (!second.isEmpty() && !ItemStack.isSameItemSameComponents(second, costB))) return false;
+        int missing = costB.getCount() - second.getCount();
+        if (missing <= 0 || first.getCount() - missing < a.getCount()) return false;
+        ClientStacker.click(menu, 0, 0);
+        for (int i = 0; i < missing; i++) ClientStacker.click(menu, 1, 1);
+        ClientStacker.click(menu, 0, 0);
+        return true;
+    }
+
     private boolean atLimit() {
         long price = (offer.getCostA().is(Items.EMERALD) ? offer.getCostA().getCount() : 0)
             + (costB.is(Items.EMERALD) ? costB.getCount() : 0);
         TradeLimits.Stop limit = limits.check(spent, price, ClientStacker.balance(menu, true),
             MenuInventory.count(menu, result, false), result.getCount());
-        if (limit == TradeLimits.Stop.NONE) return false;
+        if (limit == TradeLimits.Stop.NONE) {
+            for (ItemStack cost : costs(offer.getCostA(), costB)) {
+                var material = Materials.ALL.stream().filter(pair -> pair.loose().equals(Materials.id(cost))).findFirst().orElse(null);
+                if (material == null || material.equals(Materials.EMERALDS)) continue;
+                long value = material.value(MenuInventory.count(menu, new ItemStack(Materials.item(material.compact())), true),
+                    MenuInventory.count(menu, new ItemStack(Materials.item(material.loose())), true));
+                for (int slot : new int[]{0, 1}) {
+                    if (ItemStack.isSameItemSameComponents(menu.getSlot(slot).getItem(), cost)) value += menu.getSlot(slot).getItem().getCount();
+                }
+                int retained = retainedValues.get(material);
+                if (value < retained || cost.getCount() > value - retained) {
+                    ClientStacker.message("material_reserve");
+                    return true;
+                }
+            }
+            return false;
+        }
         ClientStacker.message("limit." + limit.name().toLowerCase(java.util.Locale.ROOT));
         return true;
+    }
+
+    private static List<ItemStack> costs(ItemStack first, ItemStack second) {
+        if (!second.isEmpty() && ItemStack.isSameItemSameComponents(first, second)) {
+            return List.of(first.copyWithCount(first.getCount() + second.getCount()));
+        }
+        return List.of(first, second);
     }
 
     private void findOffer() {
@@ -279,7 +332,6 @@ final class TradeOperation implements Operation {
     @Override
     public void slot(int container, int slot, ItemStack item) {
         if (craft != null) craft.slot(container, slot, item);
-        if (stage == Stage.SELECTED && container == menu.containerId && slot == 2) selectedResult = true;
     }
 
     @Override
@@ -287,7 +339,6 @@ final class TradeOperation implements Operation {
         if (craft != null) craft.contents(container);
         if (checkpoint != null) checkpoint.contents(container);
         if (stage == Stage.OPEN) contentsId = container;
-        if (stage == Stage.SELECTED && container == menu.containerId) selectedResult = true;
     }
 
     @Override
@@ -306,6 +357,9 @@ final class TradeOperation implements Operation {
         if (craft != null) craft.cancel();
         // A purchase awaiting a fresh snapshot is never repeated or reversed.
     }
+
+    @Override public int completed() { return completed; }
+    @Override public String unit() { return "trades"; }
 
     private void resetDeadline() {
         deadline = System.nanoTime() + ClientStacker.config().timeoutSeconds * 1_000_000_000L;

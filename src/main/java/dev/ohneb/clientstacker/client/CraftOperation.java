@@ -14,6 +14,7 @@ final class CraftOperation implements Operation {
     private final AbstractContainerMenu menu;
     private final Conversion conversion;
     private final boolean compact;
+    private final int reserve;
     private int remaining;
     private Stage stage = Stage.FILL;
     private CraftPlanner.Plan plan;
@@ -27,6 +28,7 @@ final class CraftOperation implements Operation {
         this.menu = menu;
         this.conversion = conversion;
         this.compact = compact;
+        this.reserve = compact ? ClientStacker.config().looseReserve(conversion) : ClientStacker.config().blockReserve(conversion);
         this.remaining = crafts;
         if (crafts < 1) throw new IllegalArgumentException("No crafts requested");
         resetDeadline();
@@ -43,7 +45,7 @@ final class CraftOperation implements Operation {
                 if (!MenuInventory.emptyGrid(menu)) throw new Stopped("grid");
                 try {
                     plan = CraftPlanner.plan(MenuInventory.snapshot(menu), MenuInventory.grid(menu), 0,
-                        conversion, compact, compact ? ClientStacker.config().looseReserve : 0,
+                        conversion, compact, reserve,
                         Materials.item(compact ? conversion.compact() : conversion.loose()).getDefaultMaxStackSize());
                 } catch (CraftPlanner.Unavailable exception) {
                     if (completed > 0 && exception.reason() == CraftPlanner.Failure.NOT_ENOUGH_ITEMS) return true;
@@ -107,6 +109,8 @@ final class CraftOperation implements Operation {
 
     @Override
     public void barrier(int id) { if (checkpoint != null) checkpoint.barrier(id); }
+
+    @Override public int completed() { return completed; }
 
     @Override
     public void cancel() {

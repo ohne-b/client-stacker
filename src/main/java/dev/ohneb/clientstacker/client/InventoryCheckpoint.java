@@ -20,16 +20,20 @@ final class InventoryCheckpoint {
     private final AbstractContainerMenu menu;
     private final List<ItemStack> expected;
     private final int resultSlot;
-    private boolean fullState;
+    private List<ItemStack> received;
     private boolean barrier;
     private boolean confirmed;
 
     InventoryCheckpoint(AbstractContainerMenu menu, int resultSlot) {
+        this(menu, resultSlot, true);
+    }
+
+    InventoryCheckpoint(AbstractContainerMenu menu, int resultSlot, boolean preserveLayout) {
         Operation.requireCurrent(menu);
         if (!menu.getCarried().isEmpty()) throw new Operation.Stopped("cursor");
         this.menu = menu;
         this.resultSlot = resultSlot;
-        this.expected = MenuInventory.copySlots(menu);
+        this.expected = preserveLayout ? MenuInventory.copySlots(menu) : null;
         var hotbar = MenuInventory.playerSlots(menu).stream().filter(slot -> slot.getContainerSlot() == 0)
             .findFirst().orElseThrow(() -> new Operation.Stopped("changed"));
         var connection = Minecraft.getInstance().getConnection();
@@ -48,19 +52,20 @@ final class InventoryCheckpoint {
     }
 
     void contents(int container) {
-        if (container == menu.containerId) fullState = true;
+        if (container == menu.containerId) received = MenuInventory.copySlots(menu);
     }
 
     void barrier(int responseId) {
         if (responseId != id) return;
         barrier = true;
-        confirmed = fullState && menu.getCarried().isEmpty() && MenuInventory.matches(expected, menu, resultSlot);
+        confirmed = received != null && menu.getCarried().isEmpty() && MenuInventory.matches(received, menu, resultSlot)
+            && (expected == null || MenuInventory.matches(expected, menu, resultSlot));
     }
 
     boolean ready() {
         Operation.requireCurrent(menu);
         if (!barrier) return false;
-        if (!confirmed || !menu.getCarried().isEmpty() || !MenuInventory.matches(expected, menu, resultSlot)) {
+        if (!confirmed || !menu.getCarried().isEmpty() || !MenuInventory.matches(received, menu, resultSlot)) {
             throw new Operation.Stopped("uncertain");
         }
         return true;

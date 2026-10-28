@@ -10,21 +10,38 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
+import net.minecraft.world.item.crafting.display.RecipeDisplayId;
 
 @SuppressWarnings("UnstableApiUsage")
 public final class InventoryFailureGameTest implements FabricClientGameTest {
+    public static volatile int recipePackets;
     @Override
     public void runTest(ClientGameTestContext context) {
         try (var world = context.worldBuilder().create()) {
             var server = world.getServer();
             reset(context, server, false, false);
+            recipePackets = 0;
             context.runOnClient(client -> {
                 start(context);
+                client.gameMode.handlePlaceRecipe(0, new RecipeDisplayId(0), false);
                 ClientStacker.tick();
                 if (client.player.inventoryMenu.getSlot(1).getItem().isEmpty()) throw new AssertionError("No input to cancel");
+                client.gameMode.handlePlaceRecipe(0, new RecipeDisplayId(0), true);
                 ClientStacker.cancel();
             });
             context.waitTicks(4);
+            assertUntouched(server, false);
+            if (recipePackets != 0) throw new AssertionError("Recipe-book placement bypassed inventory ownership");
+
+            reset(context, server, false, false);
+            context.runOnClient(client -> {
+                start(context);
+                ClientStacker.showScreen(null);
+                ((dev.ohneb.clientstacker.testmixin.KeyboardInvoker) client.keyboardHandler).press(client.getWindow().handle(), com.mojang.blaze3d.platform.InputConstants.PRESS,
+                    new net.minecraft.client.input.KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE, 0, 0));
+                if (ClientStacker.busy()) throw new AssertionError("Escape with no container screen did not cancel");
+            });
+            context.waitTicks(3);
             assertUntouched(server, false);
 
             reset(context, server, true, false);

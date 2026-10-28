@@ -11,6 +11,8 @@ interface Operation {
     default void offers(int container) {}
     default void barrier(int id) {}
     default void cancel() {}
+    default int completed() { return 0; }
+    default String unit() { return "crafts"; }
 
     final class Stopped extends RuntimeException {
         final String reason;

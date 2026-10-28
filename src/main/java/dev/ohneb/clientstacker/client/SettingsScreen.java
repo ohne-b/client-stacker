@@ -31,7 +31,7 @@ public final class SettingsScreen extends Screen {
         numbers.clear();
         var config = ClientStacker.config();
         int x = width / 2 - 150;
-        int y = Math.max(28, height / 2 - 95);
+        int y = Math.max(32, height / 2 - 95);
         if (page == 0) {
             toggle(x, y, "enabled", () -> config.enabled, value -> config.enabled = value);
             toggle(x + 154, y, "server", () -> !config.disabledServers.contains(ClientStacker.serverKey()), value -> {
@@ -43,7 +43,10 @@ public final class SettingsScreen extends Screen {
             toggle(x, y + 48, "auto_compact", () -> config.compactOnTableOpen, value -> config.compactOnTableOpen = value);
             toggle(x + 154, y + 48, "netherite", () -> config.allowNetherite, value -> config.allowNetherite = value);
             number(x, y + 84, "reserve", config.looseReserve, value -> config.looseReserve = value);
-            number(x + 154, y + 84, "retain", config.retainedEmeralds, value -> config.retainedEmeralds = value);
+            number(x + 154, y + 84, "retain", config.retainedValue(Materials.EMERALDS), value -> {
+                config.retainedEmeralds = value;
+                config.retainedValues.remove(Materials.EMERALDS.loose());
+            });
             number(x, y + 120, "spending", config.spendingCap, value -> config.spendingCap = value);
             number(x + 154, y + 120, "target", config.outputTarget, value -> config.outputTarget = value);
             number(x, y + 156, "timeout", config.timeoutSeconds, value -> config.timeoutSeconds = value);
@@ -123,7 +126,8 @@ public final class SettingsScreen extends Screen {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
         super.render(graphics, mouseX, mouseY, delta);
-        graphics.drawCenteredString(font, page == 0 ? title : Component.translatable("client_stacker.materials"), width / 2, 10, 0xFFFFFFFF);
+        graphics.drawCenteredString(font, page == 0 ? title : Component.translatable("client_stacker.materials"), width / 2, 6, 0xFFFFFFFF);
+        graphics.drawCenteredString(font, VtpCompat.status(), width / 2, 18, 0xFFBBBBBB);
         for (var number : numbers) {
             graphics.drawString(font, Component.translatable("client_stacker.setting." + number.key),
                 number.field.getX(), number.field.getY() - 10, 0xFFE0E0E0);

@@ -1,6 +1,7 @@
 package dev.ohneb.clientstacker.client;
 
 import dev.ohneb.clientstacker.core.CraftPlanner;
+import dev.ohneb.clientstacker.core.Conversion;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -29,8 +30,8 @@ public final class ClientStacker {
     //?} else {
     /*private static final String CATEGORY = "key.categories.client_stacker";
     *///?}
-    public static final KeyMapping UNPACK = new KeyMapping("key.client_stacker.unpack", InputConstants.KEY_U, CATEGORY);
-    public static final KeyMapping COMPACT = new KeyMapping("key.client_stacker.compact", InputConstants.KEY_J, CATEGORY);
+    public static final KeyMapping UNPACK = new KeyMapping("key.client_stacker.unpack", InputConstants.UNKNOWN.getValue(), CATEGORY);
+    public static final KeyMapping COMPACT = new KeyMapping("key.client_stacker.compact", InputConstants.UNKNOWN.getValue(), CATEGORY);
     public static final KeyMapping PROTECT = new KeyMapping("key.client_stacker.protect", InputConstants.UNKNOWN.getValue(), CATEGORY);
     public static final KeyMapping SETTINGS = new KeyMapping("key.client_stacker.settings", InputConstants.UNKNOWN.getValue(), CATEGORY);
     private static StackerConfig config;
@@ -41,6 +42,8 @@ public final class ClientStacker {
     private static MerchantMenu lastMerchantMenu;
     private static int handoffTicks;
     private static boolean internalClick;
+    private static boolean keyRepeat;
+    private static float health;
     private static AbstractContainerMenu previousMenu;
 
     private ClientStacker() {}
@@ -54,6 +57,8 @@ public final class ClientStacker {
     public static boolean busy() { return operation != null; }
     public static boolean ownsInput() { return busy() || handoffTicks > 0; }
     public static boolean blocksClick() { return ownsInput() && !internalClick; }
+    public static void keyRepeat(boolean repeat) { keyRepeat = repeat; }
+    public static boolean keyRepeat() { return keyRepeat; }
 
     public static boolean enabled() {
         return config != null && config.readable() && config.enabled && MC.player != null && MC.gameMode != null
@@ -78,8 +83,13 @@ public final class ClientStacker {
         }
         if (operation != null) {
             if (!enabled() || !MC.player.isAlive()) { cancel(); return; }
+            if (MC.player.getHealth() < health) { stop("damage"); return; }
+            health = MC.player.getHealth();
             try {
-                if (operation.tick()) operation = null;
+                if (operation.tick()) {
+                    if (operation.completed() > 0) message("completed", operation.completed(), Component.translatable("client_stacker." + operation.unit()));
+                    operation = null;
+                }
             } catch (Operation.Stopped exception) {
                 stop(exception.reason);
             } catch (CraftPlanner.Unavailable exception) {
@@ -93,7 +103,7 @@ public final class ClientStacker {
         if (current != previousMenu) {
             previousMenu = current;
             if (enabled() && !busy() && config.compactOnTableOpen && current instanceof CraftingMenu) {
-                startCraft(current, new ItemStack(Items.EMERALD), true, true);
+                compactAll(current);
             }
         }
         while (SETTINGS.consumeClick()) {
@@ -144,17 +154,45 @@ public final class ClientStacker {
     private static void startCraft(AbstractContainerMenu menu, ItemStack stack, boolean compact, boolean all) {
         var conversion = Materials.forStack(stack, compact);
         if (conversion == null) { message("material"); return; }
-        if (MenuInventory.grid(menu).isEmpty()) { message("grid_screen"); return; }
-        if (!menu.getCarried().isEmpty()) { message("cursor"); return; }
-        if (!MenuInventory.emptyGrid(menu)) { message("grid"); return; }
-        operation = new CraftOperation(menu, conversion, compact, all ? 2304 : 1);
+        if (!canConvert(menu)) return;
+        start(new CraftOperation(menu, conversion, compact, all ? 2304 : 1));
+    }
+
+    private static boolean canConvert(AbstractContainerMenu menu) {
+        if (!enabled() || ownsInput()) return false;
+        if (MenuInventory.grid(menu).isEmpty()) { message("grid_screen"); return false; }
+        if (!menu.getCarried().isEmpty()) { message("cursor"); return false; }
+        if (!MenuInventory.emptyGrid(menu)) { message("grid"); return false; }
+        return true;
+    }
+
+    public static void convert(AbstractContainerMenu menu, Conversion material, boolean compact, int quantity) {
+        if (!canConvert(menu) || !Materials.enabled(material)) return;
+        int crafts = 1;
+        if (quantity > 0) {
+            long loose = MenuInventory.count(menu, new ItemStack(Materials.item(material.loose())), true);
+            crafts = compact ? Math.toIntExact(Math.max(0, loose - config.looseReserve(material)) / material.ratio())
+                : Math.toIntExact(material.blocksNeeded(quantity, loose));
+        }
+        if (crafts == 0) { message("ready"); return; }
+        start(new CraftOperation(menu, material, compact, crafts));
+    }
+
+    public static void compactAll(AbstractContainerMenu menu) {
+        if (!canConvert(menu)) return;
+        if (!(menu instanceof CraftingMenu)) { message("need_table"); return; }
+        start(new CompressionOperation(menu));
+    }
+
+    public static void conversions(AbstractContainerScreen<?> parent, ItemStack selected) {
+        if (canConvert(parent.getMenu())) showScreen(new ConversionsScreen(parent, selected));
     }
 
     public static void trade(MerchantMenu menu, int index, boolean bulk) {
         if (!enabled() || ownsInput() || index < 0 || index >= menu.getOffers().size()) return;
         handoffTicks = 2;
         try {
-            operation = new TradeOperation(menu, index, bulk, menu == lastMerchantMenu ? lastMerchant : null);
+            start(new TradeOperation(menu, index, bulk, menu == lastMerchantMenu ? lastMerchant : null));
         } catch (Operation.Stopped exception) {
             message(exception.reason);
         }
@@ -229,22 +267,29 @@ public final class ClientStacker {
     public static void cancel() {
         if (operation == null) return;
         try { operation.cancel(); } catch (RuntimeException ignored) { /* Leave uncertain contents for the player. */ }
-        operation = null;
-        message("cancelled");
+        stop("cancelled");
+    }
+
+    private static void start(Operation request) {
+        health = MC.player.getHealth();
+        operation = request;
     }
 
     private static void stop(String reason) {
         // Corrections and timeouts must not trigger compensating clicks on an uncertain inventory.
+        if (operation != null && operation.completed() > 0) {
+            message("stopped_after", Component.translatable("client_stacker.message." + reason), operation.completed(),
+                Component.translatable("client_stacker." + operation.unit()));
+        } else message(reason);
         operation = null;
-        message(reason);
     }
 
-    public static void message(String key) {
+    public static void message(String key, Object... arguments) {
         if (MC.player == null) return;
         //? if >=26.2 {
-        /*MC.gui.hud.setOverlayMessage(Component.translatable("client_stacker.message." + key), false);
+        /*MC.gui.hud.setOverlayMessage(Component.translatable("client_stacker.message." + key, arguments), false);
         *///?} else {
-        MC.gui.setOverlayMessage(Component.translatable("client_stacker.message." + key), false);
+        MC.gui.setOverlayMessage(Component.translatable("client_stacker.message." + key, arguments), false);
         //?}
     }
 

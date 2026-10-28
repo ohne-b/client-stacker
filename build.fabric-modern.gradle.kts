@@ -21,6 +21,22 @@ java {
 
 sourceSets.main { java.exclude("**/NeoForgeClient.java") }
 
+stonecutter {
+    for ((old, currentName) in listOf(
+        "ClickType" to "ContainerInput", "handleInventoryMouseClick" to "handleContainerInput",
+        "keybinding.v1.KeyBindingHelper" to "keymapping.v1.KeyMappingHelper",
+        "KeyBindingHelper.registerKeyBinding" to "KeyMappingHelper.registerKeyMapping"
+    )) replacements.string { replace(old, currentName); direction = true }
+    if (eval(current.version, ">=26.1")) {
+        for ((old, currentName) in listOf(
+            "GuiGraphics" to "GuiGraphicsExtractor", "\"render\"" to "\"extractRenderState\"",
+            "render(" to "extractRenderState(", "drawString" to "text", "drawCenteredString" to "centeredText",
+            "renderWidget" to "extractWidgetRenderState", "renderContents" to "extractContents",
+            "renderItemDecorations" to "itemDecorations", "renderItem(" to "item("
+        )) replacements.string { replace(old, currentName); direction = true }
+    }
+}
+
 tasks.processResources {
     inputs.property("version", project.version)
     inputs.property("minecraft", minecraftVersion)
@@ -33,5 +49,10 @@ tasks.processResources {
 tasks.jar {
     dependsOn(":core:classes")
     from(project(":core").layout.buildDirectory.dir("classes/java/main"))
+    from(rootProject.file("LICENSE.md"))
+}
+
+tasks.named<Jar>("sourcesJar") {
+    from(rootProject.file("core/src/main/java"))
     from(rootProject.file("LICENSE.md"))
 }

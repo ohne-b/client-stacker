@@ -34,10 +34,6 @@ public abstract class ClientPacketsMixin {
 
     @Inject(method = "handleCommandSuggestions", at = @At("RETURN"))
     private void clientStacker$barrier(ClientboundCommandSuggestionsPacket packet, CallbackInfo ci) {
-        //? if >=1.21.5 {
         ClientStacker.barrier(packet.id());
-        //?} else {
-        /*ClientStacker.barrier(packet.getId());
-        *///?}
     }
 }

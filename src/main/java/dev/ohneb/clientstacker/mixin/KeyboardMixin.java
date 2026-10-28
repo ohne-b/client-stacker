@@ -20,9 +20,13 @@ public abstract class KeyboardMixin {
     //?} else {
     /*private void clientStacker$escape(long window, int key, int scan, int action, int modifiers, CallbackInfo ci) {
     *///?}
+        ClientStacker.keyRepeat(action == InputConstants.REPEAT);
         if (key == InputConstants.KEY_ESCAPE && action == InputConstants.PRESS && ClientStacker.ownsInput()) {
             ClientStacker.cancel();
             ci.cancel();
         }
     }
+
+    @Inject(method = "keyPress", at = @At("RETURN"))
+    private void clientStacker$resetRepeat(CallbackInfo ci) { ClientStacker.keyRepeat(false); }
 }

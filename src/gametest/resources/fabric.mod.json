@@ -9,7 +9,9 @@
     "fabric-client-gametest": [
       "dev.ohneb.clientstacker.client.InventoryGameTest",
       "dev.ohneb.clientstacker.client.InventoryFailureGameTest",
-      "dev.ohneb.clientstacker.client.TradeCorrectionGameTest"
+      "dev.ohneb.clientstacker.client.TradeCorrectionGameTest",
+      "dev.ohneb.clientstacker.client.TradeSafetyGameTest",
+      "dev.ohneb.clientstacker.client.SettingsGameTest"
     ]
   }
 }

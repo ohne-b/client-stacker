@@ -21,11 +21,16 @@ public final class VtpCompat {
 
     public static void initialize(String installedVersion, String loader) {
         version = installedVersion;
+        failed = false;
         prefix = "1.1+1.21".equals(version) ? loader + ".cc.cassian.trading." : "cc.cassian.trading.";
     }
 
     public static boolean installed() { return version != null; }
     public static boolean supported() { return version != null && KNOWN.contains(version) && !failed; }
+    public static net.minecraft.network.chat.Component status() {
+        return net.minecraft.network.chat.Component.translatable(!installed() ? "client_stacker.vtp.absent"
+            : supported() ? "client_stacker.vtp.supported" : "client_stacker.vtp.unknown", version == null ? "" : version);
+    }
 
     public static boolean capture(MerchantScreen screen, int index) {
         if (!supported() || ClientStacker.controlDown() || !ClientStacker.enabled()) return false;
@@ -56,7 +61,8 @@ public final class VtpCompat {
 
     private static boolean needsManagement(MerchantMenu menu, int index, boolean bulk) {
         var config = ClientStacker.config();
-        if (config.spendingCap > 0 || config.retainedEmeralds > 0 || config.outputTarget > 0
+        if (config.spendingCap > 0 || config.retainedValue(Materials.EMERALDS) > 0 || config.outputTarget > 0
+            || config.retainedValues.values().stream().anyMatch(value -> value > 0)
             || !config.protectedSlots.isEmpty()) return true;
         var offer = menu.getOffers().get(index);
         for (ItemStack cost : List.of(offer.getCostA(), offer.getCostB())) {
