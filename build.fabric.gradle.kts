@@ -51,6 +51,9 @@ if (minecraftVersion == "1.21.11") {
         java.setSrcDirs(listOf(rootProject.file("src/gametest/java")))
         resources.setSrcDirs(listOf(rootProject.file("src/gametest/resources")))
     }
+    loom.runs.named("clientGameTest") {
+        vmArg("-Dclientstacker.test.artifacts=${rootProject.file("artifacts").absolutePath}")
+    }
 }
 
 stonecutter {
@@ -72,5 +75,10 @@ tasks.processResources {
 tasks.jar {
     dependsOn(":core:classes")
     from(project(":core").layout.buildDirectory.dir("classes/java/main"))
+    from(rootProject.file("LICENSE.md"))
+}
+
+tasks.named<Jar>("sourcesJar") {
+    from(rootProject.file("core/src/main/java"))
     from(rootProject.file("LICENSE.md"))
 }

@@ -2,6 +2,7 @@ package dev.ohneb.clientstacker.mixin;
 
 import dev.ohneb.clientstacker.client.ClientStacker;
 import dev.ohneb.clientstacker.client.MenuInventory;
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Tooltip;
@@ -82,7 +83,7 @@ public abstract class ContainerScreenMixin extends Screen {
         }
     }
 
-    @Inject(method = "slotClicked", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "slotClicked(Lnet/minecraft/world/inventory/Slot;IILnet/minecraft/world/inventory/ClickType;)V", at = @At("HEAD"), cancellable = true)
     private void clientStacker$guard(Slot slot, int slotId, int button, ClickType type, CallbackInfo ci) {
         if (ClientStacker.blocksClick()) ci.cancel();
     }
@@ -103,7 +104,7 @@ public abstract class ContainerScreenMixin extends Screen {
         boolean settings = ClientStacker.SETTINGS.matches(key, scan);
     *///?}
         if (ClientStacker.ownsInput()) {
-            if (key == 256) ClientStacker.cancel();
+            if (key == InputConstants.KEY_ESCAPE) ClientStacker.cancel();
             cir.setReturnValue(true);
         } else if (unpack || compact) {
             ClientStacker.convert((AbstractContainerScreen<?>) (Object) this, hoveredSlot, compact);

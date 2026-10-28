@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Map;
 
 final class TradeOperation implements Operation {
-    private enum Stage { PREPARE, CRAFT, OPEN, SELECTED }
+    private enum Stage { PREPARE, BEFORE_CRAFT, CRAFT, BEFORE_OPEN, OPEN, SELECTED }
 
     private final Minecraft minecraft = Minecraft.getInstance();
     private final Entity merchant;
@@ -43,6 +43,9 @@ final class TradeOperation implements Operation {
     private int offersId = -1;
     private boolean selectedResult;
     private List<ItemStack> beforeSelect;
+    private InventoryCheckpoint checkpoint;
+    private Conversion neededConversion;
+    private int neededCrafts;
 
     TradeOperation(MerchantMenu menu, int index, boolean bulk, Entity merchant) {
         if (merchant == null) throw new Stopped("merchant");
@@ -60,6 +63,10 @@ final class TradeOperation implements Operation {
         this.limits = ClientStacker.config().tradeLimits();
         if (!Materials.plain(baseA) || !Materials.plain(costB)) throw new Stopped("components");
         if (!menu.getCarried().isEmpty()) throw new Stopped("cursor");
+        if (!ClientStacker.config().protectedSlots.isEmpty()
+            && (!menu.getSlot(0).getItem().isEmpty() || !menu.getSlot(1).getItem().isEmpty())) {
+            throw new Stopped("input_provenance");
+        }
         resetDeadline();
     }
 
@@ -92,10 +99,10 @@ final class TradeOperation implements Operation {
                     break;
                 }
                 if (needed != null) {
-                    minecraft.player.closeContainer();
-                    minecraft.setScreen(new InventoryScreen(minecraft.player));
-                    craft = new CraftOperation(minecraft.player.inventoryMenu, needed, false, crafts);
-                    stage = Stage.CRAFT;
+                    neededConversion = needed;
+                    neededCrafts = crafts;
+                    checkpoint = new InventoryCheckpoint(menu, 2);
+                    stage = Stage.BEFORE_CRAFT;
                 } else {
                     // Selecting an offer fills inputs on the server. Reject sources the server
                     // could choose but this request is not allowed to touch.
@@ -114,6 +121,15 @@ final class TradeOperation implements Operation {
                     menu.setSelectionHint(index);
                     minecraft.getConnection().send(new ServerboundSelectTradePacket(index));
                 }
+                resetDeadline();
+            }
+            case BEFORE_CRAFT -> {
+                if (!checkpoint.ready()) return false;
+                minecraft.player.closeContainer();
+                ClientStacker.showScreen(new InventoryScreen(minecraft.player));
+                craft = new CraftOperation(minecraft.player.inventoryMenu, neededConversion, false, neededCrafts);
+                checkpoint = null;
+                stage = Stage.CRAFT;
                 resetDeadline();
             }
             case CRAFT -> {
@@ -145,6 +161,11 @@ final class TradeOperation implements Operation {
                 }
                 stage = Stage.PREPARE;
                 resetDeadline();
+            }
+            case BEFORE_OPEN -> {
+                if (!checkpoint.ready()) return false;
+                checkpoint = null;
+                reopen();
             }
             case SELECTED -> {
                 Operation.requireCurrent(menu);
@@ -178,7 +199,9 @@ final class TradeOperation implements Operation {
                 MenuInventory.clearInputs(menu, List.of(0, 1));
                 spent += price;
                 expectedInventory = inventory();
-                reopen();
+                checkpoint = new InventoryCheckpoint(menu, 2);
+                stage = Stage.BEFORE_OPEN;
+                resetDeadline();
             }
         }
         return false;
@@ -231,7 +254,11 @@ final class TradeOperation implements Operation {
         contentsId = -1;
         offersId = -1;
         stage = Stage.OPEN;
+        //? if >=26.1 {
+        /*minecraft.gameMode.interact(minecraft.player, merchant, new net.minecraft.world.phys.EntityHitResult(merchant), InteractionHand.MAIN_HAND);
+        *///?} else {
         minecraft.gameMode.interact(minecraft.player, merchant, InteractionHand.MAIN_HAND);
+        //?}
         resetDeadline();
     }
 
@@ -258,8 +285,15 @@ final class TradeOperation implements Operation {
     @Override
     public void contents(int container) {
         if (craft != null) craft.contents(container);
+        if (checkpoint != null) checkpoint.contents(container);
         if (stage == Stage.OPEN) contentsId = container;
         if (stage == Stage.SELECTED && container == menu.containerId) selectedResult = true;
+    }
+
+    @Override
+    public void barrier(int id) {
+        if (craft != null) craft.barrier(id);
+        if (checkpoint != null) checkpoint.barrier(id);
     }
 
     @Override

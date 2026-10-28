@@ -12,6 +12,12 @@ description = "Use compact resources for crafting and villager trading."
 displayURL = "https://github.com/ohne-b/client-stacker"
 
 [[dependencies.client_stacker]]
+modId = "neoforge"
+type = "required"
+versionRange = "[${neoforge},)"
+side = "CLIENT"
+
+[[dependencies.client_stacker]]
 modId = "minecraft"
 type = "required"
 versionRange = "[${minecraft}]"

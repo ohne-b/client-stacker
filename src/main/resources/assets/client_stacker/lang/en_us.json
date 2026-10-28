@@ -53,6 +53,7 @@
   "client_stacker.message.offer": "Stopped: the original trade changed or is ambiguous.",
   "client_stacker.message.price": "Stopped: the trade became more expensive.",
   "client_stacker.message.protected_trade": "Move matching protected or custom ingredients out of this inventory before trading.",
+  "client_stacker.message.input_provenance": "Clear the trade inputs first so protected resources can be checked.",
   "client_stacker.message.cancelled": "Cancelled. Completed conversions and purchases are kept.",
   "client_stacker.message.save": "Settings could not be saved. Check config/client-stacker.json and the game log.",
   "client_stacker.message.vtp_unknown": "This Villager Trading Plus version has no supported handoff. Its controls are unchanged.",

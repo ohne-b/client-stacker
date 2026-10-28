@@ -1,6 +1,7 @@
 package dev.ohneb.clientstacker.client;
 
 import dev.ohneb.clientstacker.core.CraftPlanner;
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
@@ -28,10 +29,10 @@ public final class ClientStacker {
     //?} else {
     /*private static final String CATEGORY = "key.categories.client_stacker";
     *///?}
-    public static final KeyMapping UNPACK = new KeyMapping("key.client_stacker.unpack", 85, CATEGORY);
-    public static final KeyMapping COMPACT = new KeyMapping("key.client_stacker.compact", 74, CATEGORY);
-    public static final KeyMapping PROTECT = new KeyMapping("key.client_stacker.protect", -1, CATEGORY);
-    public static final KeyMapping SETTINGS = new KeyMapping("key.client_stacker.settings", -1, CATEGORY);
+    public static final KeyMapping UNPACK = new KeyMapping("key.client_stacker.unpack", InputConstants.KEY_U, CATEGORY);
+    public static final KeyMapping COMPACT = new KeyMapping("key.client_stacker.compact", InputConstants.KEY_J, CATEGORY);
+    public static final KeyMapping PROTECT = new KeyMapping("key.client_stacker.protect", InputConstants.UNKNOWN.getValue(), CATEGORY);
+    public static final KeyMapping SETTINGS = new KeyMapping("key.client_stacker.settings", InputConstants.UNKNOWN.getValue(), CATEGORY);
     private static StackerConfig config;
     private static Operation operation;
     private static Entity pendingMerchant;
@@ -102,7 +103,7 @@ public final class ClientStacker {
 
     public static void openSettings() {
         if (ownsInput()) return;
-        Screen parent = MC.screen;
+        Screen parent = screen();
         if (parent instanceof AbstractContainerScreen<?> container) {
             var menu = container.getMenu();
             if (!menu.getCarried().isEmpty()) { message("cursor"); return; }
@@ -114,7 +115,23 @@ public final class ClientStacker {
             MC.player.closeContainer();
             parent = null;
         }
-        MC.setScreen(new SettingsScreen(parent));
+        showScreen(new SettingsScreen(parent));
+    }
+
+    public static Screen screen() {
+        //? if >=26.2 {
+        /*return MC.gui.screen();
+        *///?} else {
+        return MC.screen;
+        //?}
+    }
+
+    public static void showScreen(Screen screen) {
+        //? if >=26.2 {
+        /*MC.gui.setScreen(screen);
+        *///?} else {
+        MC.setScreen(screen);
+        //?}
     }
 
     public static void convert(AbstractContainerScreen<?> screen, Slot hovered, boolean compact) {
@@ -178,6 +195,10 @@ public final class ClientStacker {
         if (operation != null) operation.contents(container);
     }
 
+    public static void barrier(int id) {
+        if (operation != null) operation.barrier(id);
+    }
+
     public static void offers(int container) {
         if (operation != null) operation.offers(container);
         if (!busy() && MC.player != null && MC.player.containerMenu instanceof MerchantMenu menu
@@ -219,7 +240,12 @@ public final class ClientStacker {
     }
 
     public static void message(String key) {
-        if (MC.player != null) MC.player.displayClientMessage(Component.translatable("client_stacker.message." + key), true);
+        if (MC.player == null) return;
+        //? if >=26.2 {
+        /*MC.gui.hud.setOverlayMessage(Component.translatable("client_stacker.message." + key), false);
+        *///?} else {
+        MC.gui.setOverlayMessage(Component.translatable("client_stacker.message." + key), false);
+        //?}
     }
 
     public static boolean shiftDown() {

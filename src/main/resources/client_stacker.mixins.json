@@ -7,6 +7,7 @@
     "ClientPacketsMixin",
     "ContainerScreenMixin",
     "GameModeMixin",
+    "KeyboardMixin",
     "MerchantScreenAccess",
     "MerchantScreenMixin"
   ],

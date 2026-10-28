@@ -90,7 +90,6 @@ public final class SettingsScreen extends Screen {
     private void number(int x, int y, String key, int value, IntConsumer apply) {
         var field = new EditBox(font, x, y, 146, 18, Component.translatable("client_stacker.setting." + key));
         field.setMaxLength(9);
-        field.setFilter(text -> text.matches("[0-9]*"));
         field.setValue(Integer.toString(value));
         field.setTooltip(Tooltip.create(Component.translatable("client_stacker.setting." + key + ".help")));
         field.setEditable(ClientStacker.config().readable());
@@ -100,7 +99,7 @@ public final class SettingsScreen extends Screen {
 
     private boolean applyNumbers() {
         for (var number : numbers) {
-            if (number.field.getValue().isEmpty()) { error = Component.translatable("client_stacker.settings.invalid"); return false; }
+            if (!number.field.getValue().matches("[0-9]+")) { error = Component.translatable("client_stacker.settings.invalid"); return false; }
             int value = Integer.parseInt(number.field.getValue());
             if (number.key.equals("timeout") && (value < 5 || value > 15)) {
                 error = Component.translatable("client_stacker.settings.invalid");
@@ -118,7 +117,7 @@ public final class SettingsScreen extends Screen {
             error = Component.translatable("client_stacker.message.save");
             if (ClientStacker.config().readable()) return;
         }
-        minecraft.setScreen(parent);
+        ClientStacker.showScreen(parent);
     }
 
     @Override

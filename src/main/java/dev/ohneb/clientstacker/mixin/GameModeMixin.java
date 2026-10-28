@@ -16,6 +16,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(MultiPlayerGameMode.class)
 public abstract class GameModeMixin {
+    //? if >=26.1 {
+    /*@Inject(method = "interact", at = @At("HEAD"))
+    private void clientStacker$interact(Player player, Entity entity, EntityHitResult hit, InteractionHand hand,
+                                       CallbackInfoReturnable<InteractionResult> cir) {
+        ClientStacker.interacted(entity);
+    }
+    *///?} else {
     @Inject(method = "interact", at = @At("HEAD"))
     private void clientStacker$interact(Player player, Entity entity, InteractionHand hand, CallbackInfoReturnable<InteractionResult> cir) {
         ClientStacker.interacted(entity);
@@ -27,8 +34,15 @@ public abstract class GameModeMixin {
         ClientStacker.interacted(entity);
     }
 
+    //?}
+
     @Inject(method = "handleInventoryMouseClick", at = @At("HEAD"), cancellable = true)
     private void clientStacker$click(int container, int slot, int button, ClickType type, Player player, CallbackInfo ci) {
         if (ClientStacker.blocksClick()) ci.cancel();
+    }
+
+    @Inject(method = "handlePlaceRecipe", at = @At("HEAD"), cancellable = true)
+    private void clientStacker$recipe(CallbackInfo ci) {
+        if (ClientStacker.ownsInput()) ci.cancel();
     }
 }

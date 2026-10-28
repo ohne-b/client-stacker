@@ -9,7 +9,7 @@ import java.util.List;
 
 /** One recipe at a time, fenced by the server's crafting-result updates. */
 final class CraftOperation implements Operation {
-    private enum Stage { FILL, RESULT, COLLECTED }
+    private enum Stage { FILL, RESULT, COLLECTED, CHECKPOINT }
 
     private final AbstractContainerMenu menu;
     private final Conversion conversion;
@@ -21,6 +21,7 @@ final class CraftOperation implements Operation {
     private boolean serverResult;
     private long deadline;
     private int completed;
+    private InventoryCheckpoint checkpoint;
 
     CraftOperation(AbstractContainerMenu menu, Conversion conversion, boolean compact, int crafts) {
         this.menu = menu;
@@ -73,9 +74,16 @@ final class CraftOperation implements Operation {
             case COLLECTED -> {
                 if (!serverResult) return false;
                 if (!menu.getSlot(0).getItem().isEmpty()) throw new Stopped("recipe");
+                checkpoint = new InventoryCheckpoint(menu, 0);
+                stage = Stage.CHECKPOINT;
+                resetDeadline();
+            }
+            case CHECKPOINT -> {
+                if (!checkpoint.ready()) return false;
                 completed++;
                 if (--remaining == 0) return true;
                 stage = Stage.FILL;
+                checkpoint = null;
             }
         }
         return false;
@@ -94,7 +102,11 @@ final class CraftOperation implements Operation {
     @Override
     public void contents(int container) {
         if (container == menu.containerId) slot(container, 0, menu.getSlot(0).getItem());
+        if (checkpoint != null) checkpoint.contents(container);
     }
+
+    @Override
+    public void barrier(int id) { if (checkpoint != null) checkpoint.barrier(id); }
 
     @Override
     public void cancel() {

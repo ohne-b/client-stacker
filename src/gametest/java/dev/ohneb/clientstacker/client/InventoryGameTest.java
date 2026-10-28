@@ -3,6 +3,7 @@ package dev.ohneb.clientstacker.client;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext;
+import net.fabricmc.fabric.api.client.gametest.v1.screenshot.TestScreenshotOptions;
 import dev.ohneb.clientstacker.testmixin.MerchantInvoker;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
@@ -27,6 +28,7 @@ import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 
 import java.util.Optional;
+import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @SuppressWarnings("UnstableApiUsage")
@@ -110,10 +112,11 @@ public final class InventoryGameTest implements FabricClientGameTest {
             context.waitFor(client -> !ClientStacker.busy(), 400);
             assertInventory(server, Items.BREAD, 2, Items.EMERALD, 4);
             assertInventory(server, Items.EMERALD_BLOCK, 0, Items.BREAD, 2);
-            context.takeScreenshot("client-stacker-trading");
+            context.waitTicks(100);
+            context.takeScreenshot(TestScreenshotOptions.of("trading").withDestinationDir(Path.of(System.getProperty("clientstacker.test.artifacts"))));
             context.runOnClient(client -> ClientStacker.openSettings());
             context.waitForScreen(SettingsScreen.class);
-            context.takeScreenshot("client-stacker-settings");
+            context.takeScreenshot(TestScreenshotOptions.of("settings").withDestinationDir(Path.of(System.getProperty("clientstacker.test.artifacts"))));
         }
     }
 
