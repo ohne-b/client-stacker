@@ -54,6 +54,25 @@ public final class TradeSafetyGameTest implements FabricClientGameTest {
             trade(context, false);
             assertResult(server, 0, Items.IRON_BLOCK, 1, Items.IRON_INGOT, 0);
 
+            int namedMerchant = open(context, server, Items.EMERALD, 7, null, 0, new ItemStack(Items.EMERALD_BLOCK, 2));
+            server.runOnServer(instance -> {
+                var player = instance.getPlayerList().getPlayers().getFirst();
+                var tag = new ItemStack(Items.NAME_TAG);
+                tag.set(net.minecraft.core.component.DataComponents.CUSTOM_NAME, net.minecraft.network.chat.Component.literal("Keep this tag"));
+                player.getInventory().setItem(0, tag);
+                player.getInventory().setItem(1, new ItemStack(Items.EMERALD_BLOCK, 2));
+                player.containerMenu.broadcastFullState();
+            });
+            context.waitFor(client -> client.player.getMainHandItem().is(Items.NAME_TAG));
+            context.runOnClient(client -> ClientStacker.config().protectedSlots.add(0));
+            trade(context, false);
+            assertResult(server, 1, Items.EMERALD_BLOCK, 1, Items.EMERALD, 2);
+            server.runOnServer(instance -> {
+                var player = instance.getPlayerList().getPlayers().getFirst();
+                if (player.getInventory().getItem(0).getCount() != 1 || !player.getInventory().getItem(0).is(Items.NAME_TAG)
+                    || player.level().getEntity(namedMerchant).hasCustomName()) throw new AssertionError("Reopening consumed the protected name tag");
+            });
+
             open(context, server, Items.EMERALD, 7, null, 0, new ItemStack(Items.EMERALD, 7));
             context.runOnClient(client -> ClientStacker.config().protectedSlots.add(0));
             context.getInput().holdControl();
@@ -155,7 +174,7 @@ public final class TradeSafetyGameTest implements FabricClientGameTest {
         }
     }
 
-    private static void open(ClientGameTestContext context, TestServerContext server, Item a, int countA,
+    private static int open(ClientGameTestContext context, TestServerContext server, Item a, int countA,
                              Item b, int countB, ItemStack... inventory) {
         context.runOnClient(client -> {
             ClientStacker.cancel();
@@ -190,6 +209,7 @@ public final class TradeSafetyGameTest implements FabricClientGameTest {
         context.runOnClient(client -> client.gameMode.interact(client.player, client.level.getEntity(merchant.get()), InteractionHand.MAIN_HAND));
         context.waitForScreen(MerchantScreen.class);
         context.waitFor(client -> !((MerchantMenu) client.player.containerMenu).getOffers().isEmpty());
+        return merchant.get();
     }
 
     private static void trade(ClientGameTestContext context, boolean bulk) {

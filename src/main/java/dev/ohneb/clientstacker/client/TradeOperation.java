@@ -86,6 +86,7 @@ final class TradeOperation implements Operation {
                 findOffer();
                 if (offer.isOutOfStock()) return true;
                 if (atLimit()) return true;
+                interactionHand();
                 Conversion needed = null;
                 int crafts = 0;
                 for (ItemStack cost : Materials.costs(offer)) {
@@ -129,6 +130,7 @@ final class TradeOperation implements Operation {
             }
             case BEFORE_CRAFT -> {
                 if (!checkpoint.ready()) return false;
+                interactionHand();
                 minecraft.player.closeContainer();
                 ClientStacker.showScreen(new InventoryScreen(minecraft.player));
                 craft = new CraftOperation(minecraft.player.inventoryMenu, neededConversion, false, neededCrafts);
@@ -279,6 +281,13 @@ final class TradeOperation implements Operation {
             .mapToLong(cost -> Materials.EMERALDS.itemValue(Materials.id(cost), cost.getCount())).sum();
     }
 
+    private InteractionHand interactionHand() {
+        for (InteractionHand hand : InteractionHand.values()) {
+            if (minecraft.player.getItemInHand(hand).isEmpty()) return hand;
+        }
+        throw new Stopped("interaction_hand");
+    }
+
     private void findOffer() {
         int found = -1;
         for (int i = 0; i < menu.getOffers().size(); i++) {
@@ -307,14 +316,15 @@ final class TradeOperation implements Operation {
     private void reopen() {
         checkMerchant();
         if (!minecraft.player.containerMenu.getCarried().isEmpty()) throw new Stopped("cursor");
+        InteractionHand hand = interactionHand();
         minecraft.player.closeContainer();
         contentsId = -1;
         offersId = -1;
         stage = Stage.OPEN;
         //? if >=26.1 {
-        /*minecraft.gameMode.interact(minecraft.player, merchant, new net.minecraft.world.phys.EntityHitResult(merchant), InteractionHand.MAIN_HAND);
+        /*minecraft.gameMode.interact(minecraft.player, merchant, new net.minecraft.world.phys.EntityHitResult(merchant), hand);
         *///?} else {
-        minecraft.gameMode.interact(minecraft.player, merchant, InteractionHand.MAIN_HAND);
+        minecraft.gameMode.interact(minecraft.player, merchant, hand);
         //?}
         resetDeadline();
     }

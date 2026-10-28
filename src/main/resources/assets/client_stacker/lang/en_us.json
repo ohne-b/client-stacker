@@ -75,6 +75,7 @@
   "client_stacker.message.material_reserve": "Stopped to keep your material reserve.",
   "client_stacker.message.no_space": "Make room for the result and remaining ingredients.",
   "client_stacker.message.merchant": "Stopped: the original villager is unavailable or out of reach.",
+  "client_stacker.message.interaction_hand": "Leave one hand empty to reopen the villager safely.",
   "client_stacker.message.closed": "Stopped: the inventory screen changed.",
   "client_stacker.message.changed": "Stopped: the inventory changed. Check its contents before retrying.",
   "client_stacker.message.timeout": "Stopped waiting for the server. Check the grid and inventory before retrying.",
