@@ -35,4 +35,15 @@ class TradeLimitsTest {
         assertEquals(2, emeralds.blocksNeeded(20, 2));
         assertThrows(ArithmeticException.class, () -> emeralds.value(Long.MAX_VALUE, 1));
     }
+
+    @Test
+    void valuesCompactPaymentsInTheSameUnitsAsLoosePayments() {
+        var iron = new Conversion("iron_block", "iron_ingot", 9);
+        assertEquals(9, iron.itemValue("iron_block", 1));
+        assertEquals(7, iron.itemValue("iron_ingot", 7));
+        assertEquals(0, iron.itemValue("gold_ingot", 7));
+        assertEquals(TradeLimits.Stop.RESERVE, new TradeLimits(0, 9, 0)
+            .check(0, iron.itemValue("iron_block", 1), iron.value(1, 0), 0, 1));
+        assertThrows(ArithmeticException.class, () -> iron.itemValue("iron_block", Long.MAX_VALUE));
+    }
 }

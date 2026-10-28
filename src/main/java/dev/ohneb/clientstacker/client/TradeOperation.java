@@ -10,7 +10,6 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.inventory.MerchantMenu;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.item.trading.MerchantOffer;
 
 import java.util.HashMap;
@@ -203,8 +202,7 @@ final class TradeOperation implements Operation {
                 leftB.shrink(costB.getCount());
                 var placement = MenuInventory.placement(menu, result, leftA, leftB);
                 expectedUses = offer.getUses() + 1;
-                long price = (offer.getCostA().is(Items.EMERALD) ? offer.getCostA().getCount() : 0)
-                    + (costB.is(Items.EMERALD) ? costB.getCount() : 0);
+                long price = price();
                 ClientStacker.click(menu, 2, 0);
                 if (!ItemStack.matches(menu.getCarried(), result)) throw new Stopped("uncertain");
                 MenuInventory.putCarried(menu, placement.get(0));
@@ -242,21 +240,30 @@ final class TradeOperation implements Operation {
     }
 
     private boolean atLimit() {
-        long price = (offer.getCostA().is(Items.EMERALD) ? offer.getCostA().getCount() : 0)
-            + (costB.is(Items.EMERALD) ? costB.getCount() : 0);
-        TradeLimits.Stop limit = limits.check(spent, price, ClientStacker.balance(menu, true),
+        TradeLimits.Stop limit = limits.check(spent, price(), ClientStacker.balance(menu, true),
             MenuInventory.count(menu, result, false), result.getCount());
         if (limit == TradeLimits.Stop.NONE) {
-            for (ItemStack cost : Materials.costs(offer)) {
-                var material = Materials.ALL.stream().filter(pair -> pair.loose().equals(Materials.id(cost))).findFirst().orElse(null);
-                if (material == null || material.equals(Materials.EMERALDS)) continue;
-                long value = material.value(MenuInventory.count(menu, new ItemStack(Materials.item(material.compact())), true),
-                    MenuInventory.count(menu, new ItemStack(Materials.item(material.loose())), true));
+            for (var material : Materials.ALL) {
+                long expense = 0;
+                long compactCost = 0;
+                for (ItemStack cost : Materials.costs(offer)) {
+                    expense += material.itemValue(Materials.id(cost), cost.getCount());
+                    if (material.compact().equals(Materials.id(cost))) compactCost += cost.getCount();
+                }
+                if (expense == 0) continue;
+                long blocks = MenuInventory.count(menu, new ItemStack(Materials.item(material.compact())), true);
+                long loose = MenuInventory.count(menu, new ItemStack(Materials.item(material.loose())), true);
                 for (int slot : new int[]{0, 1}) {
-                    if (ItemStack.isSameItemSameComponents(menu.getSlot(slot).getItem(), cost)) value += menu.getSlot(slot).getItem().getCount();
+                    ItemStack input = menu.getSlot(slot).getItem();
+                    if (!Materials.plain(input)) continue;
+                    if (material.compact().equals(Materials.id(input))) blocks += input.getCount();
+                    if (material.loose().equals(Materials.id(input))) loose += input.getCount();
                 }
                 int retained = retainedValues.get(material);
-                if (value < retained || cost.getCount() > value - retained) {
+                int blockReserve = ClientStacker.config().blockReserve(material);
+                long value = material.value(blocks, loose);
+                if ((retained > 0 && (value < retained || expense > value - retained))
+                    || (blockReserve > 0 && compactCost > 0 && compactCost > blocks - blockReserve)) {
                     ClientStacker.message("material_reserve");
                     return true;
                 }
@@ -265,6 +272,11 @@ final class TradeOperation implements Operation {
         }
         ClientStacker.message("limit." + limit.name().toLowerCase(java.util.Locale.ROOT));
         return true;
+    }
+
+    private long price() {
+        return Materials.costs(offer).stream()
+            .mapToLong(cost -> Materials.EMERALDS.itemValue(Materials.id(cost), cost.getCount())).sum();
     }
 
     private void findOffer() {

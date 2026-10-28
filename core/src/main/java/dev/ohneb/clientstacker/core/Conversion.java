@@ -3,6 +3,11 @@ package dev.ohneb.clientstacker.core;
 import java.util.Objects;
 
 public record Conversion(String compact, String loose, int ratio) {
+    public long itemValue(String item, long count) {
+        if (count < 0) throw new IllegalArgumentException("Negative item count");
+        if (compact.equals(item)) return Math.multiplyExact(count, ratio);
+        return loose.equals(item) ? count : 0;
+    }
     public Conversion {
         Objects.requireNonNull(compact);
         Objects.requireNonNull(loose);

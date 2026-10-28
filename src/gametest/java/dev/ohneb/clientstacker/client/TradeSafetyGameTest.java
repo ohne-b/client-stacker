@@ -49,6 +49,11 @@ public final class TradeSafetyGameTest implements FabricClientGameTest {
             trade(context, false);
             assertResult(server, 0, Items.IRON_BLOCK, 1, Items.IRON_INGOT, 0);
 
+            open(context, server, Items.IRON_BLOCK, 1, null, 0, new ItemStack(Items.IRON_BLOCK));
+            context.runOnClient(client -> ClientStacker.config().retainedValues.put("minecraft:iron_ingot", 9));
+            trade(context, false);
+            assertResult(server, 0, Items.IRON_BLOCK, 1, Items.IRON_INGOT, 0);
+
             open(context, server, Items.EMERALD, 7, null, 0, new ItemStack(Items.EMERALD, 7));
             context.runOnClient(client -> ClientStacker.config().protectedSlots.add(0));
             context.getInput().holdControl();
