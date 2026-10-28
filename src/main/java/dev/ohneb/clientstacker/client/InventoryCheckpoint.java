@@ -16,13 +16,15 @@ import java.util.List;
 /** A full inventory response followed by a correlated server-thread barrier. */
 final class InventoryCheckpoint {
     private static int nextId = Integer.MIN_VALUE;
-    private final int id = nextId++;
+    private final int id = nextResponseId();
     private final AbstractContainerMenu menu;
     private final List<ItemStack> expected;
     private final int resultSlot;
     private List<ItemStack> received;
     private boolean barrier;
     private boolean confirmed;
+
+    static int nextResponseId() { return nextId++; }
 
     InventoryCheckpoint(AbstractContainerMenu menu, int resultSlot) {
         this(menu, resultSlot, true);

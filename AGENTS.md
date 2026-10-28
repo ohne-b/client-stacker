@@ -13,6 +13,8 @@ The checkpoint uses a valid hotbar self-swap to request vanilla's full inventory
 correction, followed by an ID-bearing completion request as a server-thread barrier.
 That request executes no command. A missing response must leave the menu open;
 ordinary ping replies do not prove that inventory packets were processed.
+Overlapping merchant interactions have no trusted identity. Discard their associations
+until a server-thread barrier has drained the replies; require a fresh interaction.
 
 Villager Trading Plus integration is optional at runtime. Preserve its screen and
 controls, capture a managed request before its trade loop starts, and leave unknown

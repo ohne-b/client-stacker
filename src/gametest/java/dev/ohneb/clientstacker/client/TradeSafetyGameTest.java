@@ -145,12 +145,63 @@ public final class TradeSafetyGameTest implements FabricClientGameTest {
             context.waitTicks(8);
             assertResult(server, 0, Items.EMERALD_BLOCK, 1, Items.EMERALD, 9);
 
+            verifyOverlappingInteractions(context, server);
             if (VtpCompat.installed()) verifyVtp(context, server);
         } finally {
             delayReopening = false;
             delayedMerchant = -1;
             rejectPurchase = false;
         }
+    }
+
+    private static void verifyOverlappingInteractions(ClientGameTestContext context, TestServerContext server) {
+        int first = open(context, server, Items.EMERALD, 7, null, 0, new ItemStack(Items.EMERALD_BLOCK, 2));
+        context.runOnClient(client -> client.player.closeContainer());
+        context.waitTicks(3);
+        var second = new AtomicInteger();
+        server.runOnServer(instance -> {
+            var player = instance.getPlayerList().getPlayers().getFirst();
+            var villager = EntityType.VILLAGER.create(player.level(), EntitySpawnReason.COMMAND);
+            villager.setPos(player.getX() + 1, player.getY(), player.getZ() + 2);
+            villager.setNoAi(true);
+            var offers = new MerchantOffers();
+            offers.add(new MerchantOffer(new ItemCost(Items.EMERALD, 7), Optional.empty(), new ItemStack(Items.BREAD), 12, 1, 0));
+            villager.setOffers(offers);
+            villager.setTradingPlayer(player);
+            player.level().addFreshEntity(villager);
+            second.set(villager.getId());
+        });
+        context.waitFor(client -> client.level.getEntity(second.get()) != null);
+        context.runOnClient(client -> {
+            client.gameMode.interact(client.player, client.level.getEntity(first), InteractionHand.MAIN_HAND);
+            client.gameMode.interact(client.player, client.level.getEntity(second.get()), InteractionHand.MAIN_HAND);
+        });
+        context.waitForScreen(MerchantScreen.class);
+        context.waitFor(client -> !((MerchantMenu) client.player.containerMenu).getOffers().isEmpty());
+        context.waitTicks(3);
+        server.runOnServer(instance -> {
+            var player = instance.getPlayerList().getPlayers().getFirst();
+            ((net.minecraft.world.entity.npc.villager.Villager) player.level().getEntity(second.get())).setTradingPlayer(null);
+        });
+        context.runOnClient(client -> {
+            ClientStacker.trade((MerchantMenu) client.player.containerMenu, 0, true);
+            if (ClientStacker.busy()) throw new AssertionError("An ambiguous merchant reply was accepted");
+        });
+        context.waitTicks(3);
+        assertResult(server, 0, Items.EMERALD_BLOCK, 2, Items.EMERALD, 0);
+
+        context.runOnClient(client -> client.player.closeContainer());
+        context.waitTicks(3);
+        context.runOnClient(client -> client.gameMode.interact(client.player, client.level.getEntity(first), InteractionHand.MAIN_HAND));
+        context.waitForScreen(MerchantScreen.class);
+        context.waitFor(client -> !((MerchantMenu) client.player.containerMenu).getOffers().isEmpty());
+        trade(context, false);
+        assertResult(server, 1, Items.EMERALD_BLOCK, 1, Items.EMERALD, 2);
+        server.runOnServer(instance -> {
+            var player = instance.getPlayerList().getPlayers().getFirst();
+            var villager = (net.minecraft.world.entity.npc.villager.Villager) player.level().getEntity(second.get());
+            if (villager.getOffers().getFirst().getUses() != 0) throw new AssertionError("The wrong merchant was used");
+        });
     }
 
     private static void verifyVtp(ClientGameTestContext context, TestServerContext server) {

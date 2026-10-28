@@ -36,6 +36,15 @@ public abstract class GameModeMixin {
 
     //?}
 
+    //? if >=26.1 {
+    /*@Inject(method = "interact", at = @At("RETURN"))
+    *///?} else {
+    @Inject(method = {"interact", "interactAt"}, at = @At("RETURN"))
+    //?}
+    private void clientStacker$interactionSent(CallbackInfoReturnable<InteractionResult> cir) {
+        ClientStacker.interactionSent();
+    }
+
     @Inject(method = "handleInventoryMouseClick", at = @At("HEAD"), cancellable = true)
     private void clientStacker$click(int container, int slot, int button, ClickType type, Player player, CallbackInfo ci) {
         if (ClientStacker.blocksClick()) ci.cancel();

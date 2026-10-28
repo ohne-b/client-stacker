@@ -9,6 +9,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ServerboundCommandSuggestionPacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.InteractionHand;
@@ -37,6 +38,8 @@ public final class ClientStacker {
     private static StackerConfig config;
     private static Operation operation;
     private static Entity pendingMerchant;
+    private static Integer merchantBarrier;
+    private static boolean ambiguousMerchant;
     private static long interactionTime;
     private static Entity lastMerchant;
     private static MerchantMenu lastMerchantMenu;
@@ -77,6 +80,8 @@ public final class ClientStacker {
         if (Minecraft.getInstance().player == null || Minecraft.getInstance().level == null) {
             operation = null;
             pendingMerchant = null;
+            merchantBarrier = null;
+            ambiguousMerchant = false;
             lastMerchant = null;
             lastMerchantMenu = null;
             previousMenu = null;
@@ -221,10 +226,19 @@ public final class ClientStacker {
     }
 
     public static void interacted(Entity entity) {
-        if (internalInteraction || !(entity instanceof Merchant)) return;
-        if (ownsInput()) cancel();
+        if (!(entity instanceof Merchant)) return;
+        if (!internalInteraction && ownsInput()) cancel();
+        if (pendingMerchant != null && pendingMerchant != entity) ambiguousMerchant = true;
+        lastMerchantMenu = null;
         pendingMerchant = entity;
         interactionTime = System.nanoTime();
+    }
+
+    public static void interactionSent() {
+        if (pendingMerchant == null) return;
+        merchantBarrier = InventoryCheckpoint.nextResponseId();
+        // Keep overlapping interactions ambiguous until their server replies have been processed.
+        Minecraft.getInstance().getConnection().send(new ServerboundCommandSuggestionPacket(merchantBarrier, "/"));
     }
 
     static void reopen(Entity entity, InteractionHand hand) {
@@ -251,16 +265,20 @@ public final class ClientStacker {
 
     public static void barrier(int id) {
         if (operation != null) operation.barrier(id);
+        if (merchantBarrier != null && merchantBarrier == id) {
+            pendingMerchant = null;
+            merchantBarrier = null;
+            ambiguousMerchant = false;
+        }
     }
 
     public static void offers(int container) {
         if (operation != null) operation.offers(container);
         if (!busy() && Minecraft.getInstance().player != null && Minecraft.getInstance().player.containerMenu instanceof MerchantMenu menu
-            && menu.containerId == container && pendingMerchant != null
+            && menu.containerId == container && pendingMerchant != null && !ambiguousMerchant
             && System.nanoTime() - interactionTime < 10_000_000_000L) {
             lastMerchantMenu = menu;
             lastMerchant = pendingMerchant;
-            pendingMerchant = null;
         }
     }
 
