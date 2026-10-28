@@ -24,7 +24,6 @@ import org.slf4j.LoggerFactory;
 import java.nio.file.Path;
 
 public final class ClientStacker {
-    private static final Minecraft MC = Minecraft.getInstance();
     //? if >=1.21.9 {
     private static final KeyMapping.Category CATEGORY = KeyMapping.Category.register(Identifier.parse("client_stacker:controls"));
     //?} else {
@@ -61,19 +60,19 @@ public final class ClientStacker {
     public static boolean keyRepeat() { return keyRepeat; }
 
     public static boolean enabled() {
-        return config != null && config.readable() && config.enabled && MC.player != null && MC.gameMode != null
-            && !MC.player.isSpectator() && !MC.player.isCreative()
+        return config != null && config.readable() && config.enabled && Minecraft.getInstance().player != null && Minecraft.getInstance().gameMode != null
+            && !Minecraft.getInstance().player.isSpectator() && !Minecraft.getInstance().player.isCreative()
             && !config.disabledServers.contains(serverKey());
     }
 
     public static String serverKey() {
-        return MC.getCurrentServer() == null ? "singleplayer" : MC.getCurrentServer().ip.toLowerCase(java.util.Locale.ROOT);
+        return Minecraft.getInstance().getCurrentServer() == null ? "singleplayer" : Minecraft.getInstance().getCurrentServer().ip.toLowerCase(java.util.Locale.ROOT);
     }
 
     public static void tick() {
         if (config == null) return;
         if (handoffTicks > 0) handoffTicks--;
-        if (MC.player == null || MC.level == null) {
+        if (Minecraft.getInstance().player == null || Minecraft.getInstance().level == null) {
             operation = null;
             pendingMerchant = null;
             lastMerchant = null;
@@ -82,9 +81,9 @@ public final class ClientStacker {
             return;
         }
         if (operation != null) {
-            if (!enabled() || !MC.player.isAlive()) { cancel(); return; }
-            if (MC.player.getHealth() < health) { stop("damage"); return; }
-            health = MC.player.getHealth();
+            if (!enabled() || !Minecraft.getInstance().player.isAlive()) { cancel(); return; }
+            if (Minecraft.getInstance().player.getHealth() < health) { stop("damage"); return; }
+            health = Minecraft.getInstance().player.getHealth();
             try {
                 if (operation.tick()) {
                     if (operation.completed() > 0) message("completed", operation.completed(), Component.translatable("client_stacker." + operation.unit()));
@@ -99,7 +98,7 @@ public final class ClientStacker {
                 stop("changed");
             }
         }
-        AbstractContainerMenu current = MC.player.containerMenu;
+        AbstractContainerMenu current = Minecraft.getInstance().player.containerMenu;
         if (current != previousMenu) {
             previousMenu = current;
             if (enabled() && !busy() && config.compactOnTableOpen && current instanceof CraftingMenu) {
@@ -122,7 +121,7 @@ public final class ClientStacker {
                 message("grid");
                 return;
             }
-            MC.player.closeContainer();
+            Minecraft.getInstance().player.closeContainer();
             parent = null;
         }
         showScreen(new SettingsScreen(parent));
@@ -130,17 +129,17 @@ public final class ClientStacker {
 
     public static Screen screen() {
         //? if >=26.2 {
-        /*return MC.gui.screen();
+        /*return Minecraft.getInstance().gui.screen();
         *///?} else {
-        return MC.screen;
+        return Minecraft.getInstance().screen;
         //?}
     }
 
     public static void showScreen(Screen screen) {
         //? if >=26.2 {
-        /*MC.gui.setScreen(screen);
+        /*Minecraft.getInstance().gui.setScreen(screen);
         *///?} else {
-        MC.setScreen(screen);
+        Minecraft.getInstance().setScreen(screen);
         //?}
     }
 
@@ -239,7 +238,7 @@ public final class ClientStacker {
 
     public static void offers(int container) {
         if (operation != null) operation.offers(container);
-        if (!busy() && MC.player != null && MC.player.containerMenu instanceof MerchantMenu menu
+        if (!busy() && Minecraft.getInstance().player != null && Minecraft.getInstance().player.containerMenu instanceof MerchantMenu menu
             && menu.containerId == container && pendingMerchant != null
             && System.nanoTime() - interactionTime < 10_000_000_000L) {
             lastMerchantMenu = menu;
@@ -258,7 +257,7 @@ public final class ClientStacker {
         if (slot < 0 || slot >= menu.slots.size()) throw new Operation.Stopped("changed");
         internalClick = true;
         try {
-            MC.gameMode.handleInventoryMouseClick(menu.containerId, slot, button, ClickType.PICKUP, MC.player);
+            Minecraft.getInstance().gameMode.handleInventoryMouseClick(menu.containerId, slot, button, ClickType.PICKUP, Minecraft.getInstance().player);
         } finally {
             internalClick = false;
         }
@@ -271,7 +270,7 @@ public final class ClientStacker {
     }
 
     private static void start(Operation request) {
-        health = MC.player.getHealth();
+        health = Minecraft.getInstance().player.getHealth();
         operation = request;
     }
 
@@ -285,17 +284,17 @@ public final class ClientStacker {
     }
 
     public static void message(String key, Object... arguments) {
-        if (MC.player == null) return;
+        if (Minecraft.getInstance().player == null) return;
         //? if >=26.2 {
-        /*MC.gui.hud.setOverlayMessage(Component.translatable("client_stacker.message." + key, arguments), false);
+        /*Minecraft.getInstance().gui.hud.setOverlayMessage(Component.translatable("client_stacker.message." + key, arguments), false);
         *///?} else {
-        MC.gui.setOverlayMessage(Component.translatable("client_stacker.message." + key, arguments), false);
+        Minecraft.getInstance().gui.setOverlayMessage(Component.translatable("client_stacker.message." + key, arguments), false);
         //?}
     }
 
     public static boolean shiftDown() {
         //? if >=1.21.9 {
-        return MC.hasShiftDown();
+        return Minecraft.getInstance().hasShiftDown();
         //?} else {
         /*return Screen.hasShiftDown();
         *///?}
@@ -303,7 +302,7 @@ public final class ClientStacker {
 
     public static boolean controlDown() {
         //? if >=1.21.9 {
-        return MC.hasControlDown();
+        return Minecraft.getInstance().hasControlDown();
         //?} else {
         /*return Screen.hasControlDown();
         *///?}
