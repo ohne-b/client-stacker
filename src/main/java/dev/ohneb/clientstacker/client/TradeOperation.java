@@ -86,11 +86,10 @@ final class TradeOperation implements Operation {
                 MenuInventory.clearInputs(menu, List.of(0, 1));
                 findOffer();
                 if (offer.isOutOfStock()) return true;
-                ItemStack a = offer.getCostA();
                 if (atLimit()) return true;
                 Conversion needed = null;
                 int crafts = 0;
-                for (ItemStack cost : costs(a, costB)) {
+                for (ItemStack cost : Materials.costs(offer)) {
                     if (cost.isEmpty()) continue;
                     long count = MenuInventory.count(menu, cost, true);
                     if (count >= cost.getCount()) continue;
@@ -248,7 +247,7 @@ final class TradeOperation implements Operation {
         TradeLimits.Stop limit = limits.check(spent, price, ClientStacker.balance(menu, true),
             MenuInventory.count(menu, result, false), result.getCount());
         if (limit == TradeLimits.Stop.NONE) {
-            for (ItemStack cost : costs(offer.getCostA(), costB)) {
+            for (ItemStack cost : Materials.costs(offer)) {
                 var material = Materials.ALL.stream().filter(pair -> pair.loose().equals(Materials.id(cost))).findFirst().orElse(null);
                 if (material == null || material.equals(Materials.EMERALDS)) continue;
                 long value = material.value(MenuInventory.count(menu, new ItemStack(Materials.item(material.compact())), true),
@@ -266,13 +265,6 @@ final class TradeOperation implements Operation {
         }
         ClientStacker.message("limit." + limit.name().toLowerCase(java.util.Locale.ROOT));
         return true;
-    }
-
-    private static List<ItemStack> costs(ItemStack first, ItemStack second) {
-        if (!second.isEmpty() && ItemStack.isSameItemSameComponents(first, second)) {
-            return List.of(first.copyWithCount(first.getCount() + second.getCount()));
-        }
-        return List.of(first, second);
     }
 
     private void findOffer() {

@@ -6,7 +6,6 @@ import net.minecraft.world.inventory.MerchantMenu;
 import net.minecraft.world.item.ItemStack;
 
 import java.lang.reflect.Field;
-import java.util.List;
 import java.util.Set;
 
 /** Only the inspected upstream releases participate in request handoff. */
@@ -65,7 +64,7 @@ public final class VtpCompat {
             || config.retainedValues.values().stream().anyMatch(value -> value > 0)
             || !config.protectedSlots.isEmpty()) return true;
         var offer = menu.getOffers().get(index);
-        for (ItemStack cost : List.of(offer.getCostA(), offer.getCostB())) {
+        for (ItemStack cost : Materials.costs(offer)) {
             var pair = Materials.forTrade(cost);
             if (pair == null) continue;
             long compact = MenuInventory.count(menu, new ItemStack(Materials.item(pair.compact())), true);

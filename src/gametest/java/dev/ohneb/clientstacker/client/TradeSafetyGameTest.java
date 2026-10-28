@@ -105,6 +105,15 @@ public final class TradeSafetyGameTest implements FabricClientGameTest {
     }
 
     private static void verifyVtp(ClientGameTestContext context, TestServerContext server) {
+        open(context, server, Items.EMERALD, 7, Items.EMERALD, 2,
+            new ItemStack(Items.EMERALD, 7), new ItemStack(Items.EMERALD_BLOCK));
+        context.runOnClient(client -> {
+            ((MerchantInvoker) client.screen).selectOffer();
+            if (!ClientStacker.busy()) throw new AssertionError("Combined payment deficit was not handed off");
+        });
+        context.waitFor(client -> !ClientStacker.busy());
+        assertResult(server, 1, Items.EMERALD, 7, Items.EMERALD_BLOCK, 0);
+
         open(context, server, Items.EMERALD, 7, null, 0,
             new ItemStack(Items.EMERALD, 7), new ItemStack(Items.EMERALD_BLOCK, 2));
         context.runOnClient(client -> {

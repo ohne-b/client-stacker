@@ -6,6 +6,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.trading.MerchantOffer;
 
 import java.util.List;
 
@@ -23,6 +24,15 @@ public final class Materials {
     );
 
     private Materials() {}
+
+    public static List<ItemStack> costs(MerchantOffer offer) {
+        ItemStack first = offer.getCostA();
+        ItemStack second = offer.getCostB();
+        if (!second.isEmpty() && ItemStack.isSameItemSameComponents(first, second)) {
+            return List.of(first.copyWithCount(first.getCount() + second.getCount()));
+        }
+        return List.of(first, second);
+    }
 
     private static Conversion pair(String compact, String loose) {
         return new Conversion("minecraft:" + compact, "minecraft:" + loose, 9);
