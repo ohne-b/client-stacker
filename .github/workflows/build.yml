@@ -55,6 +55,8 @@ jobs:
       - name: Check startup and settings
         timeout-minutes: 10
         env:
+          # SDL3's GLX visual selection fails under Xvfb; use Mesa's EGL path.
+          SDL_VIDEO_FORCE_EGL: '1'
           BUILD_TARGET: ${{ matrix.target }}
           JDK21: ${{ env.JAVA_HOME_21_X64 }}
           JDK25: ${{ env.JAVA_HOME_25_X64 }}
