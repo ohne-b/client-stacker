@@ -3,6 +3,7 @@
   "id": "client_stacker",
   "version": "${version}",
   "name": "Client Stacker",
+  "icon": "assets/client_stacker/logo.png",
   "description": "Use compact resources for crafting and villager trading.",
   "authors": ["ohne-b"],
   "license": "MIT",

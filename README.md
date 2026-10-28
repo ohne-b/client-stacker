@@ -1,3 +1,5 @@
+<p align="center"><img src="src/main/resources/assets/client_stacker/logo.svg" alt="Client Stacker logo" width="144"></p>
+
 <h1 align="center">Client Stacker</h1>
 
 <p align="center">Use compact resources for crafting and villager trading.</p>
