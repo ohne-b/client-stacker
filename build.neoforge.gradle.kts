@@ -9,6 +9,7 @@ base.archivesName = "client-stacker"
 repositories { mavenCentral() }
 
 dependencies { implementation(project(":core")) }
+evaluationDependsOn(":core")
 
 java {
     toolchain.languageVersion = JavaLanguageVersion.of(if (minecraftVersion.startsWith("26.")) 25 else 21)
@@ -20,7 +21,12 @@ neoForge {
     runs {
         register("client") { client(); gameDirectory = file("run") }
     }
-    mods { register("client_stacker") { sourceSet(sourceSets.main.get()) } }
+    mods {
+        register("client_stacker") {
+            sourceSet(sourceSets.main.get())
+            sourceSet(project(":core").extensions.getByType<SourceSetContainer>()["main"])
+        }
+    }
 }
 
 sourceSets.main { java.exclude("**/FabricClient.java") }
