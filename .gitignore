@@ -1,0 +1,15 @@
+.gradle/
+.idea/
+*.iml
+**/build/
+**/run/
+.tools/
+artifacts/
+logs/
+*.log
+.DS_Store
+Thumbs.db
+# Local research from the initial design discussion.
+docs/IMPLEMENTATION_PLAN.md
+docs/client-stacker-overview.html
+docs/support-matrix.json
