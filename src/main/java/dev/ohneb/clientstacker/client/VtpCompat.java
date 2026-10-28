@@ -62,6 +62,7 @@ public final class VtpCompat {
         var config = ClientStacker.config();
         if (config.spendingCap > 0 || config.retainedValue(Materials.EMERALDS) > 0 || config.outputTarget > 0
             || config.retainedValues.values().stream().anyMatch(value -> value > 0)
+            || config.blockReserves.values().stream().anyMatch(value -> value > 0)
             || !config.protectedSlots.isEmpty()) return true;
         var offer = menu.getOffers().get(index);
         for (ItemStack cost : Materials.costs(offer)) {

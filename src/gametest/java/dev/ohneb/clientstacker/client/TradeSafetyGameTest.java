@@ -163,6 +163,15 @@ public final class TradeSafetyGameTest implements FabricClientGameTest {
         context.waitFor(client -> !ClientStacker.busy());
         assertResult(server, 1, Items.EMERALD, 7, Items.EMERALD_BLOCK, 0);
 
+        open(context, server, Items.IRON_BLOCK, 1, null, 0, new ItemStack(Items.IRON_BLOCK));
+        context.runOnClient(client -> {
+            ClientStacker.config().blockReserves.put("minecraft:iron_block", 1);
+            ((MerchantInvoker) client.screen).selectOffer();
+            if (!ClientStacker.busy()) throw new AssertionError("Compact payment bypassed the block reserve");
+        });
+        context.waitFor(client -> !ClientStacker.busy());
+        assertResult(server, 0, Items.IRON_BLOCK, 1, Items.IRON_INGOT, 0);
+
         open(context, server, Items.EMERALD, 7, null, 0,
             new ItemStack(Items.EMERALD, 7), new ItemStack(Items.EMERALD_BLOCK, 2));
         context.runOnClient(client -> {
