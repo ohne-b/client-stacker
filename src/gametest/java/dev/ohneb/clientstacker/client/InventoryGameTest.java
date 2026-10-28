@@ -117,6 +117,13 @@ public final class InventoryGameTest implements FabricClientGameTest {
             context.runOnClient(client -> ClientStacker.openSettings());
             context.waitForScreen(SettingsScreen.class);
             context.takeScreenshot(TestScreenshotOptions.of("settings").withDestinationDir(Path.of(System.getProperty("clientstacker.test.artifacts"))));
+        } catch (AssertionError failure) {
+            Thread.getAllStackTraces().forEach((thread, trace) -> {
+                var state = new AssertionError(thread.getName() + " (" + thread.getState() + ")");
+                state.setStackTrace(trace);
+                failure.addSuppressed(state);
+            });
+            throw failure;
         }
     }
 
