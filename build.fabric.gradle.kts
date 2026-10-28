@@ -29,14 +29,27 @@ java {
 
 sourceSets.main { java.exclude("**/NeoForgeClient.java") }
 
-if (minecraftVersion == "1.21.11") {
-    if (providers.gradleProperty("vtpTest").isPresent) {
-        dependencies {
-            modLocalRuntime("maven.modrinth:trading-plus:j6SJOwxf")
-            // Loom does not put a dependency's nested library on the development classpath.
-            runtimeOnly("folk.sisby:kaleido-config:0.3.3+1.3.2")
-        }
+if (providers.gradleProperty("smokeTest").isPresent) {
+    apply(from = rootProject.file("gradle/smoke.gradle.kts"))
+    loom.mods {
+        register("client_stacker") { sourceSet(sourceSets.main.get()) }
+        register("client_stacker_smoke") { sourceSet(sourceSets["smoke"]) }
     }
+    loom.runs.named("client") {
+        source(sourceSets["smoke"])
+        vmArg("-Dclientstacker.smoke.result=${rootProject.file("artifacts/smoke-${project.name}.txt").absolutePath}")
+    }
+}
+
+if (providers.gradleProperty("vtpTest").isPresent) {
+    dependencies {
+        modLocalRuntime("maven.modrinth:trading-plus:${property("vtp_test_version")}")
+        // Loom omits the dependency's nested library from the development classpath.
+        if (minecraftVersion == "1.21.11") runtimeOnly("folk.sisby:kaleido-config:0.3.3+1.3.2")
+    }
+}
+
+if (minecraftVersion == "1.21.11") {
     fabricApi {
         configureTests {
             createSourceSet = true

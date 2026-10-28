@@ -6,7 +6,13 @@ version = "${property("mod_version")}+mc$minecraftVersion-neoforge"
 group = property("maven_group").toString()
 base.archivesName = "client-stacker"
 
-repositories { mavenCentral() }
+repositories {
+    mavenCentral()
+    exclusiveContent {
+        forRepository { maven("https://api.modrinth.com/maven") }
+        filter { includeGroup("maven.modrinth") }
+    }
+}
 
 dependencies { implementation(project(":core")) }
 evaluationDependsOn(":core")
@@ -30,6 +36,17 @@ neoForge {
 }
 
 sourceSets.main { java.exclude("**/FabricClient.java") }
+
+if (providers.gradleProperty("smokeTest").isPresent) {
+    apply(from = rootProject.file("gradle/smoke.gradle.kts"))
+    neoForge.mods { register("client_stacker_smoke") { sourceSet(sourceSets["smoke"]) } }
+    neoForge.runs.named("client") {
+        systemProperty("clientstacker.smoke.result", rootProject.file("artifacts/smoke-${project.name}.txt").absolutePath)
+    }
+}
+if (providers.gradleProperty("vtpTest").isPresent && providers.gradleProperty("vtp_test_version").isPresent) {
+    dependencies { runtimeOnly("maven.modrinth:trading-plus:${property("vtp_test_version")}") }
+}
 
 stonecutter {
     replacements.string {

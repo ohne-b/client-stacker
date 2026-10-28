@@ -5,7 +5,14 @@ version = "${property("mod_version")}+mc$minecraftVersion-fabric"
 group = property("maven_group").toString()
 base.archivesName = "client-stacker"
 
-repositories { mavenCentral() }
+repositories {
+    mavenCentral()
+    exclusiveContent {
+        forRepository { maven("https://api.modrinth.com/maven") }
+        filter { includeGroup("maven.modrinth") }
+    }
+    maven("https://repo.sleeping.town/") { content { includeGroup("folk.sisby") } }
+}
 
 dependencies {
     minecraft("com.mojang:minecraft:$minecraftVersion")
@@ -20,6 +27,24 @@ java {
 }
 
 sourceSets.main { java.exclude("**/NeoForgeClient.java") }
+
+if (providers.gradleProperty("smokeTest").isPresent) {
+    apply(from = rootProject.file("gradle/smoke.gradle.kts"))
+    loom.mods {
+        register("client_stacker") { sourceSet(sourceSets.main.get()) }
+        register("client_stacker_smoke") { sourceSet(sourceSets["smoke"]) }
+    }
+    loom.runs.named("client") {
+        source(sourceSets["smoke"])
+        vmArg("-Dclientstacker.smoke.result=${rootProject.file("artifacts/smoke-${project.name}.txt").absolutePath}")
+    }
+}
+if (providers.gradleProperty("vtpTest").isPresent) {
+    dependencies {
+        localRuntime("maven.modrinth:trading-plus:${property("vtp_test_version")}")
+        runtimeOnly("folk.sisby:kaleido-config:0.3.3+1.3.2")
+    }
+}
 
 stonecutter {
     for ((old, currentName) in listOf(
