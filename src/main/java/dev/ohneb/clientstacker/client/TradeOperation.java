@@ -321,11 +321,7 @@ final class TradeOperation implements Operation {
         contentsId = -1;
         offersId = -1;
         stage = Stage.OPEN;
-        //? if >=26.1 {
-        /*minecraft.gameMode.interact(minecraft.player, merchant, new net.minecraft.world.phys.EntityHitResult(merchant), hand);
-        *///?} else {
-        minecraft.gameMode.interact(minecraft.player, merchant, hand);
-        //?}
+        ClientStacker.reopen(merchant, hand);
         resetDeadline();
     }
 

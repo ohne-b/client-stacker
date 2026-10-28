@@ -11,6 +11,7 @@ import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.inventory.CraftingMenu;
@@ -41,6 +42,7 @@ public final class ClientStacker {
     private static MerchantMenu lastMerchantMenu;
     private static int handoffTicks;
     private static boolean internalClick;
+    private static boolean internalInteraction;
     private static boolean keyRepeat;
     private static float health;
     private static AbstractContainerMenu previousMenu;
@@ -219,9 +221,24 @@ public final class ClientStacker {
     }
 
     public static void interacted(Entity entity) {
-        if (busy() || !(entity instanceof Merchant)) return;
+        if (internalInteraction || !(entity instanceof Merchant)) return;
+        if (ownsInput()) cancel();
         pendingMerchant = entity;
         interactionTime = System.nanoTime();
+    }
+
+    static void reopen(Entity entity, InteractionHand hand) {
+        internalInteraction = true;
+        try {
+            var client = Minecraft.getInstance();
+            //? if >=26.1 {
+            /*client.gameMode.interact(client.player, entity, new net.minecraft.world.phys.EntityHitResult(entity), hand);
+            *///?} else {
+            client.gameMode.interact(client.player, entity, hand);
+            //?}
+        } finally {
+            internalInteraction = false;
+        }
     }
 
     public static void slot(int container, int slot, ItemStack item) {

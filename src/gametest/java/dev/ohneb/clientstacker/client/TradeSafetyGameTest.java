@@ -120,6 +120,31 @@ public final class TradeSafetyGameTest implements FabricClientGameTest {
             context.waitTicks(8);
             assertResult(server, 0, Items.EMERALD_BLOCK, 1, Items.EMERALD, 9);
 
+            open(context, server, Items.EMERALD, 7, null, 0, new ItemStack(Items.EMERALD_BLOCK, 2));
+            var secondMerchant = new AtomicInteger();
+            server.runOnServer(instance -> {
+                var player = instance.getPlayerList().getPlayers().getFirst();
+                var villager = EntityType.VILLAGER.create(player.level(), EntitySpawnReason.COMMAND);
+                villager.setPos(player.getX() + 1, player.getY(), player.getZ() + 2);
+                villager.setNoAi(true);
+                var offers = new MerchantOffers();
+                offers.add(new MerchantOffer(new ItemCost(Items.EMERALD, 7), Optional.empty(), new ItemStack(Items.BREAD), 12, 1, 0));
+                villager.setOffers(offers);
+                player.level().addFreshEntity(villager);
+                secondMerchant.set(villager.getId());
+            });
+            delayedMerchant = -1;
+            delayReopening = true;
+            context.runOnClient(client -> ClientStacker.trade((MerchantMenu) client.player.containerMenu, 0, true));
+            context.waitFor(client -> delayedMerchant >= 0 && client.screen == null && client.level.getEntity(secondMerchant.get()) != null);
+            context.runOnClient(client -> {
+                client.gameMode.interact(client.player, client.level.getEntity(secondMerchant.get()), InteractionHand.MAIN_HAND);
+                if (ClientStacker.busy()) throw new AssertionError("A second merchant interaction did not cancel the request");
+            });
+            context.waitForScreen(MerchantScreen.class);
+            context.waitTicks(8);
+            assertResult(server, 0, Items.EMERALD_BLOCK, 1, Items.EMERALD, 9);
+
             if (VtpCompat.installed()) verifyVtp(context, server);
         } finally {
             delayReopening = false;
