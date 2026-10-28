@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "client_stacker_tests",
+  "version": "1.0.0",
+  "name": "Client Stacker tests",
+  "environment": "client",
+  "mixins": ["client_stacker_tests.mixins.json"],
+  "entrypoints": {
+    "fabric-client-gametest": ["dev.ohneb.clientstacker.client.InventoryGameTest"]
+  }
+}

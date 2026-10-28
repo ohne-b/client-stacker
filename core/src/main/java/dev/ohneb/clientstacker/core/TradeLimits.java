@@ -15,7 +15,7 @@ public record TradeLimits(long spendingCap, long retainedValue, long outputTarge
             throw new IllegalArgumentException("Invalid trade counts");
         }
         if (spendingCap > 0 && (spent > spendingCap || price > spendingCap - spent)) return Stop.SPENDING_CAP;
-        if (availableValue < retainedValue || price > availableValue - retainedValue) return Stop.RESERVE;
+        if (price > 0 && (availableValue < retainedValue || price > availableValue - retainedValue)) return Stop.RESERVE;
         if (outputTarget > 0 && (ownedOutput >= outputTarget || outputCount > outputTarget - ownedOutput)) {
             return Stop.OUTPUT_TARGET;
         }

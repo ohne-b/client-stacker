@@ -5,7 +5,14 @@ version = "${property("mod_version")}+mc$minecraftVersion-fabric"
 group = property("maven_group").toString()
 base.archivesName = "client-stacker"
 
-repositories { mavenCentral() }
+repositories {
+    mavenCentral()
+    exclusiveContent {
+        forRepository { maven("https://api.modrinth.com/maven") }
+        filter { includeGroup("maven.modrinth") }
+    }
+    maven("https://repo.sleeping.town/") { content { includeGroup("folk.sisby") } }
+}
 
 dependencies {
     minecraft("com.mojang:minecraft:$minecraftVersion")
@@ -21,6 +28,30 @@ java {
 }
 
 sourceSets.main { java.exclude("**/NeoForgeClient.java") }
+
+if (minecraftVersion == "1.21.11") {
+    if (providers.gradleProperty("vtpTest").isPresent) {
+        dependencies {
+            modLocalRuntime("maven.modrinth:trading-plus:j6SJOwxf")
+            // Loom does not put a dependency's nested library on the development classpath.
+            runtimeOnly("folk.sisby:kaleido-config:0.3.3+1.3.2")
+        }
+    }
+    fabricApi {
+        configureTests {
+            createSourceSet = true
+            modId = "client_stacker_tests"
+            enableGameTests = false
+            enableClientGameTests = true
+            clearRunDirectory = false
+            username = "StackerTest"
+        }
+    }
+    sourceSets.named("gametest") {
+        java.setSrcDirs(listOf(rootProject.file("src/gametest/java")))
+        resources.setSrcDirs(listOf(rootProject.file("src/gametest/resources")))
+    }
+}
 
 stonecutter {
     replacements.string {

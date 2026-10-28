@@ -22,6 +22,11 @@ class TradeLimitsTest {
     }
 
     @Test
+    void sellingCanBuildUpAnEmeraldReserve() {
+        assertEquals(TradeLimits.Stop.NONE, new TradeLimits(20, 64, 0).check(0, 0, 3, 3, 1));
+    }
+
+    @Test
     void calculatesOnlyWholeBlocksNeededForTheDeficit() {
         var emeralds = new Conversion("block", "emerald", 9);
         assertEquals(0, emeralds.blocksNeeded(20, 20));

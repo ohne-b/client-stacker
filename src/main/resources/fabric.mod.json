@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "client_stacker",
+  "version": "${version}",
+  "name": "Client Stacker",
+  "description": "Use compact resources for crafting and villager trading.",
+  "authors": ["ohne-b"],
+  "license": "MIT",
+  "environment": "client",
+  "contact": {
+    "sources": "https://github.com/ohne-b/client-stacker",
+    "issues": "https://github.com/ohne-b/client-stacker/issues"
+  },
+  "entrypoints": {"client": ["dev.ohneb.clientstacker.platform.FabricClient"]},
+  "mixins": ["client_stacker.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.18.4",
+    "fabric-api": "*",
+    "minecraft": "${minecraft}",
+    "java": ">=${java}"
+  },
+  "suggests": {"villager_trading_plus": "*"}
+}

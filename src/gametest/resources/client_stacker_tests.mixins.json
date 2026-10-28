@@ -1,0 +1,7 @@
+{
+  "required": true,
+  "package": "dev.ohneb.clientstacker.testmixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": ["MerchantInvoker"],
+  "injectors": {"defaultRequire": 1}
+}

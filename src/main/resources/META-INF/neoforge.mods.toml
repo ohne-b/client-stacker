@@ -1,0 +1,21 @@
+modLoader = "javafml"
+loaderVersion = "[4,)"
+license = "MIT"
+issueTrackerURL = "https://github.com/ohne-b/client-stacker/issues"
+
+[[mods]]
+modId = "client_stacker"
+version = "${version}"
+displayName = "Client Stacker"
+authors = "ohne-b"
+description = "Use compact resources for crafting and villager trading."
+displayURL = "https://github.com/ohne-b/client-stacker"
+
+[[dependencies.client_stacker]]
+modId = "minecraft"
+type = "required"
+versionRange = "[${minecraft}]"
+side = "CLIENT"
+
+[[mixins]]
+config = "client_stacker.mixins.json"

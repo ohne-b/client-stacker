@@ -1,0 +1,14 @@
+{
+  "required": true,
+  "package": "dev.ohneb.clientstacker.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "plugin": "dev.ohneb.clientstacker.mixin.OptionalMixins",
+  "client": [
+    "ClientPacketsMixin",
+    "ContainerScreenMixin",
+    "GameModeMixin",
+    "MerchantScreenAccess",
+    "MerchantScreenMixin"
+  ],
+  "injectors": {"defaultRequire": 1}
+}
