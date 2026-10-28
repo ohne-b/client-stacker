@@ -64,7 +64,17 @@ public final class ClientStacker {
     public static void keyRepeat(boolean repeat) { keyRepeat = repeat; }
     public static boolean keyRepeat() { return keyRepeat; }
 
+    public static boolean supportsAutomation() {
+        //? if >=26.3 {
+        /*// Completion replies no longer follow inventory packets on the server thread.
+        return false;
+        *///?} else {
+        return true;
+        //?}
+    }
+
     public static boolean enabled() {
+        if (!supportsAutomation()) return false;
         return config != null && config.readable() && config.enabled && Minecraft.getInstance().player != null && Minecraft.getInstance().gameMode != null
             && !Minecraft.getInstance().player.isSpectator() && !Minecraft.getInstance().player.isCreative()
             && !config.disabledServers.contains(serverKey());
@@ -151,6 +161,7 @@ public final class ClientStacker {
     }
 
     public static void convert(AbstractContainerScreen<?> screen, Slot hovered, boolean compact) {
+        if (!supportsAutomation()) { message("unsupported_version"); return; }
         if (!enabled() || ownsInput() || screen instanceof CreativeModeInventoryScreen) return;
         if (hovered == null || MenuInventory.protectedSlot(hovered)
             || !MenuInventory.playerSlots(screen.getMenu()).contains(hovered)) return;
@@ -165,6 +176,7 @@ public final class ClientStacker {
     }
 
     private static boolean canConvert(AbstractContainerMenu menu) {
+        if (!supportsAutomation()) { message("unsupported_version"); return false; }
         if (!enabled() || ownsInput()) return false;
         if (MenuInventory.grid(menu).isEmpty()) { message("grid_screen"); return false; }
         if (!menu.getCarried().isEmpty()) { message("cursor"); return false; }
@@ -226,6 +238,7 @@ public final class ClientStacker {
     }
 
     public static void interacted(Entity entity) {
+        if (!supportsAutomation()) return;
         if (!(entity instanceof Merchant)) return;
         if (!internalInteraction && ownsInput()) cancel();
         if (pendingMerchant != null && pendingMerchant != entity) ambiguousMerchant = true;

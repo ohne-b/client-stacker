@@ -37,6 +37,7 @@ if (providers.gradleProperty("smokeTest").isPresent) {
     loom.runs.named("client") {
         source(sourceSets["smoke"])
         vmArg("-Dclientstacker.smoke.result=${rootProject.file("artifacts/smoke-${project.name}.txt").absolutePath}")
+        vmArg("-Dclientstacker.smoke.automation=${minecraftVersion != "26.3"}")
     }
 }
 if (providers.gradleProperty("vtpTest").isPresent) {

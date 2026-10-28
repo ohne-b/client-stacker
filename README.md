@@ -34,12 +34,16 @@ Build targets cover every stable Minecraft release from 1.21 through 26.3, for
 Fabric and NeoForge. Install the jar matching your exact game version and loader;
 Fabric also needs Fabric API. The mod belongs in the client's `mods` folder.
 
+Automation is available through **26.2**. The **26.3** builds provide balance display
+and settings only: server confirmation changed, and crafting and trading automation
+stay disabled until they can be verified safely.
+
 [Villager Trading Plus](https://modrinth.com/mod/trading-plus) is optional. Known
 versions use Client Stacker for trades that need conversion or its limits, preserving
 VTP's Shift settings and Ctrl bypass. Settings shows the installed version and
 integration status. Unknown versions keep their own behavior.
 
-There is no published release yet. All 34 targets pass build and startup checks.
+There is no published release yet. Build and startup checks cover all 34 targets.
 Gameplay tests cover Fabric 1.21.11 with and without VTP 1.3.0. Gameplay on other
 targets and dedicated multiplayer still need validation before release. VTP has no
 NeoForge artifact for 1.21.9, 1.21.10, or 26.x at present.

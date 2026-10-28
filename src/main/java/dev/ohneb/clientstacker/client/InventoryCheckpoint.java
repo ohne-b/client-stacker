@@ -31,6 +31,7 @@ final class InventoryCheckpoint {
     }
 
     InventoryCheckpoint(AbstractContainerMenu menu, int resultSlot, boolean preserveLayout) {
+        if (!ClientStacker.supportsAutomation()) throw new Operation.Stopped("unsupported_version");
         Operation.requireCurrent(menu);
         if (!menu.getCarried().isEmpty()) throw new Operation.Stopped("cursor");
         this.menu = menu;
@@ -48,7 +49,7 @@ final class InventoryCheckpoint {
         /*connection.send(new ServerboundContainerClickPacket(menu.containerId, 32768, hotbar.index,
             0, ClickType.SWAP, ItemStack.EMPTY, Int2ObjectMaps.emptyMap()));
         *///?}
-        // Completion requests run on the server thread and echo an ID. Ping replies do not.
+        // Through 26.2, completion requests run on the server thread and echo an ID.
         // No command is executed. A server that suppresses this response leaves the menu open.
         connection.send(new ServerboundCommandSuggestionPacket(id, "/"));
     }

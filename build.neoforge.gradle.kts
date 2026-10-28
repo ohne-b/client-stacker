@@ -42,6 +42,7 @@ if (providers.gradleProperty("smokeTest").isPresent) {
     neoForge.mods { register("client_stacker_smoke") { sourceSet(sourceSets["smoke"]) } }
     neoForge.runs.named("client") {
         systemProperty("clientstacker.smoke.result", rootProject.file("artifacts/smoke-${project.name}.txt").absolutePath)
+        systemProperty("clientstacker.smoke.automation", (minecraftVersion != "26.3").toString())
     }
 }
 if (providers.gradleProperty("vtpTest").isPresent && providers.gradleProperty("vtp_test_version").isPresent) {

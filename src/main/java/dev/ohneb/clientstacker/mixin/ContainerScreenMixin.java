@@ -77,6 +77,13 @@ public abstract class ContainerScreenMixin extends Screen {
         clientStacker$cancel = addRenderableWidget(Button.builder(Component.translatable("gui.cancel"),
             button -> ClientStacker.cancel()).bounds(leftPos, y, menu instanceof MerchantMenu ? 186 : 88, 20).build());
         clientStacker$cancel.visible = false;
+        if (!ClientStacker.supportsAutomation()) {
+            for (Button button : new Button[]{clientStacker$trade, clientStacker$bulk, clientStacker$conversions}) {
+                if (button == null) continue;
+                button.active = false;
+                button.setTooltip(Tooltip.create(Component.translatable("client_stacker.unsupported_version.help")));
+            }
+        }
     }
 
     @Inject(method = "render", at = @At("RETURN"))
@@ -89,6 +96,7 @@ public abstract class ContainerScreenMixin extends Screen {
             clientStacker$trade.visible = clientStacker$bulk.visible = !ClientStacker.busy();
         }
         if (clientStacker$conversions != null) {
+            clientStacker$conversions.active = ClientStacker.enabled() && !ClientStacker.ownsInput();
             clientStacker$conversions.visible = !ClientStacker.busy();
             if (hoveredSlot != null && MenuInventory.playerSlots(menu).contains(hoveredSlot)) clientStacker$selected = hoveredSlot.getItem().copy();
         }

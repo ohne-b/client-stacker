@@ -4,6 +4,8 @@
   "client_stacker.message.completed": "Completed %s %s",
   "client_stacker.message.stopped_after": "%s (%s %s confirmed)",
   "client_stacker.message.damage": "Stopped after taking damage",
+  "client_stacker.message.unsupported_version": "Automation is unavailable on Minecraft 26.3",
+  "client_stacker.unsupported_version.help": "Server confirmations changed in 26.3. Crafting and trading automation are disabled. Balance display and settings remain available.",
   "key.categories.client_stacker": "Client Stacker",
   "key.category.client_stacker.controls": "Client Stacker",
   "key.client_stacker.unpack": "Unpack hovered item",

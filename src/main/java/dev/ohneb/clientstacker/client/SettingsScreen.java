@@ -83,6 +83,11 @@ public final class SettingsScreen extends Screen {
         }).bounds(x, y, 146, 20).build();
         button.setTooltip(Tooltip.create(Component.translatable("client_stacker.setting." + key + ".help")));
         button.active = ClientStacker.config().readable();
+        if (key.equals("enabled") && !ClientStacker.supportsAutomation()) {
+            button.active = false;
+            button.setMessage(label(title, false));
+            button.setTooltip(Tooltip.create(Component.translatable("client_stacker.unsupported_version.help")));
+        }
         addRenderableWidget(button);
     }
 
@@ -127,7 +132,8 @@ public final class SettingsScreen extends Screen {
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
         super.render(graphics, mouseX, mouseY, delta);
         graphics.drawCenteredString(font, page == 0 ? title : Component.translatable("client_stacker.materials"), width / 2, 6, 0xFFFFFFFF);
-        graphics.drawCenteredString(font, VtpCompat.status(), width / 2, 18, 0xFFBBBBBB);
+        graphics.drawCenteredString(font, ClientStacker.supportsAutomation() ? VtpCompat.status()
+            : Component.translatable("client_stacker.message.unsupported_version"), width / 2, 18, 0xFFBBBBBB);
         for (var number : numbers) {
             graphics.drawString(font, Component.translatable("client_stacker.setting." + number.key),
                 number.field.getX(), number.field.getY() - 10, 0xFFE0E0E0);

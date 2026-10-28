@@ -20,6 +20,16 @@ final class SmokeProbe {
         if (++ticks < 40) return;
         try {
             if (!opened) {
+                boolean automation = Boolean.parseBoolean(System.getProperty("clientstacker.smoke.automation"));
+                if (ClientStacker.supportsAutomation() != automation) throw new AssertionError("Incorrect automation availability");
+                if (!automation) {
+                    ClientStacker.convert((net.minecraft.world.inventory.AbstractContainerMenu) null,
+                        dev.ohneb.clientstacker.client.Materials.EMERALDS, false, 9);
+                    ClientStacker.trade(null, 0, true);
+                    ClientStacker.interacted(null);
+                    ClientStacker.interactionSent();
+                    if (ClientStacker.busy()) throw new AssertionError("Unsupported automation started");
+                }
                 // Force transformation of targets that are otherwise first loaded on joining a world.
                 for (String name : new String[]{"net.minecraft.client.gui.screens.inventory.MerchantScreen",
                     "net.minecraft.client.multiplayer.MultiPlayerGameMode", "net.minecraft.client.multiplayer.ClientPacketListener"}) {
