@@ -5,7 +5,14 @@ version = "${property("mod_version")}+mc$minecraftVersion-fabric"
 group = property("maven_group").toString()
 base.archivesName = "client-stacker"
 
-repositories { mavenCentral() }
+repositories {
+    mavenCentral()
+    exclusiveContent {
+        forRepository { maven("https://api.modrinth.com/maven") }
+        filter { includeGroup("maven.modrinth") }
+    }
+    maven("https://repo.sleeping.town/") { content { includeGroup("folk.sisby") } }
+}
 
 dependencies {
     minecraft("com.mojang:minecraft:$minecraftVersion")
@@ -21,6 +28,41 @@ java {
 
 sourceSets.main { java.exclude("**/NeoForgeClient.java") }
 
+if (providers.gradleProperty("smokeTest").isPresent) {
+    apply(from = rootProject.file("gradle/smoke.gradle.kts"))
+    loom.mods {
+        register("client_stacker") { sourceSet(sourceSets.main.get()) }
+        register("client_stacker_smoke") { sourceSet(sourceSets["smoke"]) }
+    }
+    loom.runs.named("client") {
+        source(sourceSets["smoke"])
+        vmArg("-Dclientstacker.smoke.result=${rootProject.file("artifacts/smoke-${project.name}.txt").absolutePath}")
+        vmArg("-Dclientstacker.smoke.automation=${minecraftVersion != "26.3"}")
+    }
+}
+if (providers.gradleProperty("vtpTest").isPresent) {
+    dependencies {
+        localRuntime("maven.modrinth:trading-plus:${property("vtp_test_version")}")
+        runtimeOnly("folk.sisby:kaleido-config:0.3.3+1.3.2")
+    }
+}
+
+stonecutter {
+    for ((old, currentName) in listOf(
+        "ClickType" to "ContainerInput", "handleInventoryMouseClick" to "handleContainerInput",
+        "keybinding.v1.KeyBindingHelper" to "keymapping.v1.KeyMappingHelper",
+        "KeyBindingHelper.registerKeyBinding" to "KeyMappingHelper.registerKeyMapping"
+    )) replacements.string { replace(old, currentName); direction = true }
+    if (eval(current.version, ">=26.1")) {
+        for ((old, currentName) in listOf(
+            "GuiGraphics" to "GuiGraphicsExtractor", "\"render\"" to "\"extractRenderState\"",
+            "render(" to "extractRenderState(", "drawString" to "text", "drawCenteredString" to "centeredText",
+            "renderWidget" to "extractWidgetRenderState", "renderContents" to "extractContents",
+            "renderItemDecorations" to "itemDecorations", "renderItem(" to "item("
+        )) replacements.string { replace(old, currentName); direction = true }
+    }
+}
+
 tasks.processResources {
     inputs.property("version", project.version)
     inputs.property("minecraft", minecraftVersion)
@@ -33,5 +75,10 @@ tasks.processResources {
 tasks.jar {
     dependsOn(":core:classes")
     from(project(":core").layout.buildDirectory.dir("classes/java/main"))
+    from(rootProject.file("LICENSE.md"))
+}
+
+tasks.named<Jar>("sourcesJar") {
+    from(rootProject.file("core/src/main/java"))
     from(rootProject.file("LICENSE.md"))
 }

@@ -16,15 +16,19 @@ tests against a player's normal world or a public server.
 
 ## Development
 
-Use JDK 21 for Minecraft 1.21.x and JDK 25 for Minecraft 26.x. The committed Gradle
-wrapper resolves build dependencies. Set `JDK21` and `JDK25` to the respective JDK
+Run Gradle with JDK 25. Minecraft 1.21.x uses a JDK 21 toolchain; 26.x uses JDK 25.
+The committed Gradle wrapper resolves build dependencies. Set `JDK21` and `JDK25` to the respective JDK
 directories when both toolchains are installed outside standard locations.
+Set `JAVA_HOME` to JDK 25 when it is not already the default.
 
 ```powershell
 .\gradlew.bat :core:test
 .\gradlew.bat :1.21.11-fabric:build
 .\gradlew.bat :1.21.11-neoforge:build
 .\gradlew.bat :1.21.11-fabric:runClient
+.\gradlew.bat :1.21.11-fabric:runClientGameTest
+.\gradlew.bat :1.21.11-fabric:runClientGameTest -PvtpTest
+.\gradlew.bat :26.3-fabric:runClient -PsmokeTest -PvtpTest
 ```
 
 Version-specific dependencies live under `versions/`. Shared source is processed by
@@ -38,6 +42,17 @@ when they remove substantial work. Do not add forwarding layers, speculative API
 or a second implementation of the same accounting rule. Keep UI text in the English
 message catalog and use vanilla controls. The README is a short user entry point;
 put contributor rules here and technical contracts in AGENTS.
+
+Client game tests use disposable integrated-server worlds and check server inventory,
+offer uses, cancellation, corrections, protected resources, and dropped item entities.
+Fabric's packet synchronizer is disabled so these tests use normal asynchronous delivery.
+`-PvtpTest` adds the pinned VTP artifact to that development run. The test mod is not
+included in distributable jars. Use `xvfb-run -a` for these tests on headless Linux.
+Dedicated multiplayer, latency, and gameplay on other targets remain separate checks.
+
+`-PsmokeTest` runs a short startup check, loads the mixin targets, renders Settings,
+and exits. It writes a result under `artifacts/` and does not open a world. With
+`-PvtpTest`, it includes the target's pinned VTP artifact when one is published.
 
 ## Branches and commits
 

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="1056" viewBox="148 92 960 1056" fill="none">
+<title>Emerald interlock — clean vector master</title>
+<desc>Four interlocking geometric blocks, rebuilt on exact 45-degree diagonals. Minecraft emerald texture colors. Transparent background, editable paths, and consistent 72-unit extrusion.</desc>
+<g id="Depth-left" fill="#009529">
+<path id="Left-block-side" d="M180 604 L396 820 L396 892 L180 676 Z"/>
+<path id="Bottom-left-side" d="M412 828 L628 1044 L628 1116 L412 900 Z"/>
+</g>
+<g id="Depth-right" fill="#007B18">
+<path id="Right-block-side" d="M860 820 L1076 604 L1076 676 L860 892 Z"/>
+<path id="Bottom-right-side" d="M628 1044 L844 828 L844 900 L628 1116 Z"/>
+</g>
+<g id="Light-faces" fill="#82F6AD">
+<path id="Bottom-face" d="M504 624 L692 812 L760 744 L844 828 L628 1044 L412 828 L520 720 L464 664 Z"/>
+<path id="Top-face" d="M628 124 L844 340 L728 456 L808 536 L752 592 L532 372 L488 416 L412 340 Z"/>
+</g>
+<g id="Emerald-faces" fill="#17DD62">
+<path id="Left-face" d="M404 380 L464 440 L532 372 L624 464 L444 644 L508 708 L396 820 L180 604 Z"/>
+<path id="Right-face" d="M852 380 L1076 604 L860 820 L772 732 L692 812 L628 748 L768 608 L752 592 L808 536 L752 480 Z"/>
+</g>
+</svg>

@@ -1,0 +1,23 @@
+name: Bug report
+description: Report something that does not work.
+title: "fix: "
+body:
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Minecraft, loader, Client Stacker, and Villager Trading Plus if installed.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: What happened?
+      description: Include the steps, what you expected, and whether this happened in singleplayer or on a server.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log or screenshot
+      description: Remove server addresses, account details, and other private information before posting.

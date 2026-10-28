@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "client_stacker_tests",
+  "version": "1.0.0",
+  "name": "Client Stacker tests",
+  "environment": "client",
+  "mixins": ["client_stacker_tests.mixins.json"],
+  "entrypoints": {
+    "fabric-client-gametest": [
+      "dev.ohneb.clientstacker.client.CheckpointCorrectionGameTest",
+      "dev.ohneb.clientstacker.client.CraftTimingGameTest",
+      "dev.ohneb.clientstacker.client.InventoryGameTest",
+      "dev.ohneb.clientstacker.client.InventoryFailureGameTest",
+      "dev.ohneb.clientstacker.client.TradeCorrectionGameTest",
+      "dev.ohneb.clientstacker.client.TradeSafetyGameTest",
+      "dev.ohneb.clientstacker.client.SettingsGameTest"
+    ]
+  }
+}

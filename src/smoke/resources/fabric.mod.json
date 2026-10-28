@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "client_stacker_smoke",
+  "version": "1.0.0",
+  "name": "Client Stacker startup tests",
+  "environment": "client",
+  "entrypoints": {"client": ["dev.ohneb.clientstacker.smoke.FabricSmoke"]},
+  "depends": {"client_stacker": "*"}
+}

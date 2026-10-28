@@ -1,0 +1,7 @@
+{
+  "required": true,
+  "package": "dev.ohneb.clientstacker.testmixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": ["MerchantInvoker", "TradeInterferenceMixin", "KeyboardInvoker", "DelayedMerchantMixin", "CheckpointPacketsMixin", "TestConfigMixin"],
+  "injectors": {"defaultRequire": 1}
+}

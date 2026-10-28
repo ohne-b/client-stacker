@@ -1,0 +1,193 @@
+package dev.ohneb.clientstacker.mixin;
+
+import dev.ohneb.clientstacker.client.ClientStacker;
+import dev.ohneb.clientstacker.client.MenuInventory;
+import dev.ohneb.clientstacker.client.Materials;
+import com.mojang.blaze3d.platform.InputConstants;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.Tooltip;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen;
+import net.minecraft.client.gui.screens.inventory.MerchantScreen;
+//? if >=1.21.9 {
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
+//?}
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.ClickType;
+import net.minecraft.world.inventory.CraftingMenu;
+import net.minecraft.world.inventory.InventoryMenu;
+import net.minecraft.world.inventory.MerchantMenu;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+
+@Mixin(AbstractContainerScreen.class)
+public abstract class ContainerScreenMixin extends Screen {
+    @Shadow protected AbstractContainerMenu menu;
+    @Shadow protected Slot hoveredSlot;
+    @Shadow protected int leftPos;
+    @Shadow protected int topPos;
+    @Shadow protected int imageWidth;
+    @Shadow protected int imageHeight;
+    @Unique private Button clientStacker$trade;
+    @Unique private Button clientStacker$bulk;
+    @Unique private Button clientStacker$conversions;
+    @Unique private Button clientStacker$cancel;
+    @Unique private Button clientStacker$settings;
+    @Unique private ItemStack clientStacker$selected = ItemStack.EMPTY;
+
+    protected ContainerScreenMixin(Component title) { super(title); }
+
+    @Inject(method = "init", at = @At("RETURN"))
+    private void clientStacker$init(CallbackInfo ci) {
+        if ((Object) this instanceof CreativeModeInventoryScreen || ClientStacker.config() == null) return;
+        if (!(menu instanceof MerchantMenu || menu instanceof InventoryMenu || menu instanceof CraftingMenu)) return;
+        int y = Math.min(height - 22, topPos + imageHeight + 4);
+        int buttonWidth = menu instanceof MerchantMenu ? 86 : 84;
+        clientStacker$settings = addRenderableWidget(Button.builder(Component.translatable("client_stacker.settings"),
+            button -> ClientStacker.openSettings()).bounds(leftPos + imageWidth - buttonWidth, y, buttonWidth, 20).build());
+        clientStacker$settings.setTooltip(Tooltip.create(Component.translatable("client_stacker.controls.help",
+            ClientStacker.UNPACK.getTranslatedKeyMessage(), ClientStacker.COMPACT.getTranslatedKeyMessage())));
+        if ((Object) this instanceof MerchantScreen) {
+            clientStacker$trade = addRenderableWidget(Button.builder(Component.translatable("client_stacker.trade_once"), button -> {
+                int index = ((MerchantScreenAccess) this).clientStacker$selection();
+                ClientStacker.trade((MerchantMenu) menu, index, false);
+            }).bounds(leftPos, y, 92, 20).build());
+            clientStacker$trade.setTooltip(Tooltip.create(Component.translatable("client_stacker.trade.help")));
+            clientStacker$bulk = addRenderableWidget(Button.builder(Component.translatable("client_stacker.trade_limit"), button -> {
+                int index = ((MerchantScreenAccess) this).clientStacker$selection();
+                ClientStacker.trade((MerchantMenu) menu, index, true);
+            }).bounds(leftPos + 96, y, 90, 20).build());
+        } else {
+            clientStacker$conversions = addRenderableWidget(Button.builder(Component.translatable("client_stacker.conversions"),
+                button -> ClientStacker.conversions((AbstractContainerScreen<?>) (Object) this, clientStacker$selected))
+                .bounds(leftPos, y, 88, 20).build());
+        }
+        clientStacker$cancel = addRenderableWidget(Button.builder(Component.translatable("gui.cancel"),
+            button -> ClientStacker.cancel()).bounds(leftPos, y, menu instanceof MerchantMenu ? 186 : 88, 20).build());
+        clientStacker$cancel.visible = false;
+        if (!ClientStacker.supportsAutomation()) {
+            for (Button button : new Button[]{clientStacker$trade, clientStacker$bulk, clientStacker$conversions}) {
+                if (button == null) continue;
+                button.active = false;
+                button.setTooltip(Tooltip.create(Component.translatable("client_stacker.unsupported_version.help")));
+            }
+        }
+    }
+
+    @Inject(method = "render", at = @At("RETURN"))
+    private void clientStacker$render(GuiGraphics graphics, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+        if (clientStacker$settings == null) return;
+        clientStacker$settings.active = !ClientStacker.ownsInput();
+        clientStacker$cancel.visible = ClientStacker.busy();
+        if (clientStacker$trade != null) {
+            clientStacker$trade.active = clientStacker$bulk.active = ClientStacker.enabled() && !ClientStacker.ownsInput();
+            clientStacker$trade.visible = clientStacker$bulk.visible = !ClientStacker.busy();
+        }
+        if (clientStacker$conversions != null) {
+            clientStacker$conversions.active = ClientStacker.enabled() && !ClientStacker.ownsInput();
+            clientStacker$conversions.visible = !ClientStacker.busy();
+            if (hoveredSlot != null && MenuInventory.playerSlots(menu).contains(hoveredSlot)) clientStacker$selected = hoveredSlot.getItem().copy();
+        }
+        for (Slot slot : MenuInventory.playerSlots(menu)) {
+            if (MenuInventory.protectedSlot(slot)) {
+                int x = leftPos + slot.x;
+                int y = topPos + slot.y;
+                graphics.fill(x, y + 14, x + 16, y + 16, 0xFFFFC857);
+            }
+        }
+        if (menu instanceof MerchantMenu && ClientStacker.config().showBalance) {
+            Component balance = Component.translatable("client_stacker.balance", ClientStacker.balance(menu, false));
+            int x = Math.max(4, leftPos + imageWidth - font.width(balance));
+            int y = Math.max(2, topPos - 12);
+            graphics.drawString(font, balance, x, y, 0xFFFFFFFF);
+            if (mouseX >= x && mouseX <= x + font.width(balance) && mouseY >= y && mouseY < y + 10) {
+                long loose = MenuInventory.count(menu, new ItemStack(Items.EMERALD), false);
+                long blocks = MenuInventory.count(menu, new ItemStack(Items.EMERALD_BLOCK), false);
+                long usableBlocks = Math.max(0, MenuInventory.count(menu, new ItemStack(Items.EMERALD_BLOCK), true)
+                    - ClientStacker.config().blockReserve(Materials.EMERALDS));
+                java.util.List<Component> lines = java.util.List.of(Component.translatable("client_stacker.loose", loose),
+                    Component.translatable("client_stacker.blocks", blocks),
+                    Component.translatable("client_stacker.protected_value", ClientStacker.balance(menu, false) - ClientStacker.balance(menu, true)),
+                    Component.translatable("client_stacker.estimated", usableBlocks * 9 + MenuInventory.count(menu, new ItemStack(Items.EMERALD), true)));
+                //? if >=1.21.6 {
+                graphics.setTooltipForNextFrame(font, lines, java.util.Optional.empty(), mouseX, mouseY);
+                //?} else {
+                /*graphics.renderTooltip(font, lines, java.util.Optional.empty(), mouseX, mouseY);
+                *///?}
+            }
+        }
+    }
+
+    @Inject(method = "slotClicked(Lnet/minecraft/world/inventory/Slot;IILnet/minecraft/world/inventory/ClickType;)V", at = @At("HEAD"), cancellable = true)
+    private void clientStacker$guard(Slot slot, int slotId, int button, ClickType type, CallbackInfo ci) {
+        if (ClientStacker.blocksClick()) ci.cancel();
+    }
+
+    @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
+    //? if >=1.21.9 {
+    private void clientStacker$key(KeyEvent event, CallbackInfoReturnable<Boolean> cir) {
+        int key = event.key();
+        boolean unpack = ClientStacker.UNPACK.matches(event);
+        boolean compact = ClientStacker.COMPACT.matches(event);
+        boolean protect = ClientStacker.PROTECT.matches(event);
+        boolean settings = ClientStacker.SETTINGS.matches(event);
+    //?} else {
+    /*private void clientStacker$key(int key, int scan, int modifiers, CallbackInfoReturnable<Boolean> cir) {
+        boolean unpack = ClientStacker.UNPACK.matches(key, scan);
+        boolean compact = ClientStacker.COMPACT.matches(key, scan);
+        boolean protect = ClientStacker.PROTECT.matches(key, scan);
+        boolean settings = ClientStacker.SETTINGS.matches(key, scan);
+    *///?}
+        if (ClientStacker.keyRepeat() && (unpack || compact || protect || settings)) {
+            cir.setReturnValue(true);
+            return;
+        }
+        if (ClientStacker.ownsInput()) {
+            if (key == InputConstants.KEY_ESCAPE) ClientStacker.cancel();
+            cir.setReturnValue(true);
+        } else if (unpack || compact) {
+            ClientStacker.convert((AbstractContainerScreen<?>) (Object) this, hoveredSlot, compact);
+            cir.setReturnValue(true);
+        } else if (protect) {
+            ClientStacker.protect((AbstractContainerScreen<?>) (Object) this, hoveredSlot);
+            cir.setReturnValue(true);
+        } else if (settings) {
+            ClientStacker.openSettings();
+            cir.setReturnValue(true);
+        }
+    }
+
+    @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
+    //? if >=1.21.9 {
+    private void clientStacker$mouse(MouseButtonEvent event, boolean doubleClick, CallbackInfoReturnable<Boolean> cir) {
+        boolean unpack = ClientStacker.UNPACK.matchesMouse(event);
+        boolean compact = ClientStacker.COMPACT.matchesMouse(event);
+        boolean protect = ClientStacker.PROTECT.matchesMouse(event);
+    //?} else {
+    /*private void clientStacker$mouse(double x, double y, int button, CallbackInfoReturnable<Boolean> cir) {
+        boolean unpack = ClientStacker.UNPACK.matchesMouse(button);
+        boolean compact = ClientStacker.COMPACT.matchesMouse(button);
+        boolean protect = ClientStacker.PROTECT.matchesMouse(button);
+    *///?}
+        if (ClientStacker.ownsInput() || hoveredSlot == null) return;
+        if (unpack || compact) {
+            ClientStacker.convert((AbstractContainerScreen<?>) (Object) this, hoveredSlot, compact);
+            cir.setReturnValue(true);
+        } else if (protect) {
+            ClientStacker.protect((AbstractContainerScreen<?>) (Object) this, hoveredSlot);
+            cir.setReturnValue(true);
+        }
+    }
+}
